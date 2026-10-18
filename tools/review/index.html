@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Review</title>
+<link rel="stylesheet" href="/app/style.css">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Review your reel</h1>
+    <p class="sub" id="reelName">Loading…</p>
+  </div>
+  <div class="top-right">
+    <label class="small">Watching
+      <select id="versionSelect"></select>
+    </label>
+    <button id="brandBtn" class="ghost">🎛 Brand settings</button>
+    <button id="compareBtn" class="ghost">Compare</button>
+    <button id="restoreBtn" class="ghost hidden">Restore this version</button>
+    <button id="finalizeBtn" class="primary">Finalize &amp; Download</button>
+  </div>
+</header>
+<div class="status hidden" id="statusBar"><span class="spinner" id="spinner"></span><span id="statusText"></span></div>
+
+<main class="layout">
+  <section class="player-col">
+    <div class="players">
+      <div class="phone">
+        <video id="video" playsinline preload="auto"></video>
+        <span class="vtag" id="vtagMain"></span>
+      </div>
+      <div class="phone hidden" id="comparePhone">
+        <video id="video2" playsinline preload="auto" muted></video>
+        <span class="vtag" id="vtagCmp"></span>
+      </div>
+    </div>
+    <div class="row hidden" id="compareRow">
+      <label class="small">Compare with <select id="compareSelect"></select></label>
+      <label class="small"><input type="checkbox" id="cmpSound"> sound from this one</label>
+    </div>
+    <div class="controls">
+      <button id="playBtn" class="round" aria-label="Play or pause">▶</button>
+      <span id="timeNow" class="time">0:00.0</span>
+      <span class="time dim">/ <span id="timeTotal">0:00</span></span>
+      <button id="back1" class="ghost" title="Back 1 second">−1s</button>
+      <button id="fwd1" class="ghost" title="Forward 1 second">+1s</button>
+    </div>
+    <div class="timeline" id="timeline" title="Click to jump">
+      <div class="lane" id="laneMarks"></div>
+      <div class="playhead" id="playhead"></div>
+    </div>
+    <div class="legend">
+      <span><i class="dot g"></i>graphics</span><span><i class="dot z"></i>zooms</span>
+      <span><i class="dot s"></i>sounds</span><span><i class="dot c"></i>cuts</span>
+      <span><i class="dot n"></i>your notes</span>
+    </div>
+    <p class="caption-now" id="captionNow"></p>
+  </section>
+
+  <section class="panel">
+    <nav class="tabs" id="tabs">
+      <button data-tab="notes" class="active">📝 Notes</button>
+      <button data-tab="cuts">✂️ Cuts</button>
+      <button data-tab="captions">💬 Captions</button>
+      <button data-tab="headline">🏷️ Headline</button>
+      <button data-tab="graphics">🎨 Graphics</button>
+      <button data-tab="add">➕ Add</button>
+      <button data-tab="library">📁 Library</button>
+    </nav>
+
+    <div class="tab" id="tab-notes">
+      <h2>Tell us what to change</h2>
+      <p class="hint">Pause the video where you want a change, type what you'd like, then add the note. Anything goes: "zoom in here", "this joke needs a sound", "move the sticky note".</p>
+      <textarea id="noteText" rows="3" placeholder="e.g. Cut the breath before this sentence"></textarea>
+      <div class="row">
+        <button id="addNote" class="primary">Add note at <span class="tnow">0:00.0</span></button>
+        <button id="cutPauseHere" class="ghost">✂️ Remove the pause here</button>
+      </div>
+      <ul class="list" id="notesList"></ul>
+    </div>
+
+    <div class="tab hidden" id="tab-cuts">
+      <h2>Cuts</h2>
+      <p class="hint">What the editor took out or left in. Put things back, or remove something it missed.</p>
+      <h3>Repeated words and restarts</h3>
+      <ul class="list" id="candList"></ul>
+      <h3>Pauses longer than a natural breath</h3>
+      <ul class="list" id="pauseList"></ul>
+      <h3>Remove other words</h3>
+      <p class="hint">Click the first word, then the last word, then press the button. <s>Crossed-out</s> words are already cut.</p>
+      <div class="words" id="srcWords"></div>
+      <div class="row">
+        <button id="removeSel" class="primary" disabled>Remove selected words</button>
+        <button id="clearSel" class="ghost">Clear selection</button>
+      </div>
+    </div>
+
+    <div class="tab hidden" id="tab-captions">
+      <h2>Captions</h2>
+      <p class="hint">Click a caption to hear it. Fix spelling in the box. To fix timing, pause exactly where the word starts and press <b>Starts now</b>.</p>
+      <ul class="list caps" id="capList"></ul>
+    </div>
+
+    <div class="tab hidden" id="tab-headline">
+      <h2>Headline</h2>
+      <p class="hint">Shown at the start of your reel. Pick a suggestion or write your own.</p>
+      <div id="headOptions"></div>
+      <label class="opt"><input type="radio" name="headline" value="__custom"> <span>Write my own:</span></label>
+      <input id="headCustom" type="text" maxlength="60" placeholder="Your headline">
+    </div>
+
+    <div class="tab hidden" id="tab-graphics">
+      <h2>Graphics</h2>
+      <p class="hint">Change the words, colours, font or animation of any graphic, or remove it.</p>
+      <div id="gfxList"></div>
+    </div>
+
+    <div class="tab hidden" id="tab-library">
+      <h2>My asset library</h2>
+      <p class="hint">Your own fonts, sounds and images, saved for every reel. Upload once, then use them anywhere: press <b>Use at</b> to put a sound or image at the current moment, or pick them in Brand settings.</p>
+      <div class="card">
+        <h3>Upload</h3>
+        <input type="file" id="upFile" accept=".ttf,.otf,.mp3,.wav,.png,.jpg,.jpeg">
+        <input type="text" id="upName" placeholder="Name it (e.g. My whoosh, Main logo)">
+        <select id="upCategory"></select>
+        <button id="upBtn" class="primary">Add to my library</button>
+        <span class="small">Fonts: TTF/OTF · Sounds: MP3/WAV · Images: PNG/JPG (transparent PNGs welcome)</span>
+      </div>
+      <div class="row">
+        <select id="libFilter"><option value="">Everything</option><option value="font">Fonts</option><option value="sound">Sounds</option><option value="image">Images</option></select>
+        <label class="small"><input type="checkbox" id="libArchived"> show archived</label>
+      </div>
+      <div id="libList"></div>
+    </div>
+
+    <div class="tab hidden" id="tab-add">
+      <h2>Add something new</h2>
+      <p class="hint">Pause the video where it should happen, then add it.</p>
+      <div class="card">
+        <h3>A graphic</h3>
+        <select id="addType"></select>
+        <select id="addImage" class="hidden"></select>
+        <input id="addText" type="text" placeholder="Text, or an emoji like 🔥">
+        <label class="small">Show for <input id="addDur" type="number" value="2.5" min="0.5" max="10" step="0.5"> seconds</label>
+        <button id="addGfx" class="primary">Add graphic at <span class="tnow">0:00.0</span></button>
+      </div>
+      <div class="card">
+        <h3>A zoom</h3>
+        <select id="zoomType"><option value="punch">Snap zoom (punchy)</option><option value="push">Slow push in (smooth)</option></select>
+        <label class="small">Lasts <input id="zoomDur" type="number" value="2" min="0.5" max="10" step="0.5"> seconds</label>
+        <button id="addZoom" class="primary">Add zoom at <span class="tnow">0:00.0</span></button>
+      </div>
+      <div class="card">
+        <h3>A sound effect</h3>
+        <select id="sfxKind"><option value="pop">Pop</option><option value="whoosh">Whoosh</option><option value="ding">Ding</option><option value="click">Mouse click</option></select>
+        <span class="small">or use your own sounds from the 📁 Library tab</span>
+        <button id="previewSfx" class="ghost">Hear it</button>
+        <button id="addSfx" class="primary">Add sound at <span class="tnow">0:00.0</span></button>
+      </div>
+      <h3>Added so far</h3>
+      <ul class="list" id="addList"></ul>
+    </div>
+  </section>
+</main>
+
+<footer class="savebar">
+  <span id="changeCount">No changes yet</span>
+  <span id="draftState" class="dim"></span>
+  <button id="saveBtn" class="primary big" disabled>Save feedback</button>
+</footer>
+
+<div class="toast hidden" id="toast"></div>
+<div class="modal hidden" id="brandModal">
+  <div class="sheet wide">
+    <div class="gfx-head"><h2>🎛 Brand settings</h2><button class="ghost" id="brandClose">Close</button></div>
+    <div class="scope">
+      <span>Apply changes to:</span>
+      <label class="opt"><input type="radio" name="scope" value="reel" checked> <span><b>This reel only</b><br><span class="small">Your saved style stays as it is</span></span></label>
+      <label class="opt"><input type="radio" name="scope" value="default"> <span><b>My saved defaults</b><br><span class="small">Every future reel, and this one. Finished reels keep their look.</span></span></label>
+    </div>
+    <div id="brandForm"></div>
+    <div class="row end">
+      <span class="small" id="brandChanged"></span>
+      <button class="primary" id="brandSave" disabled>Save settings</button>
+    </div>
+  </div>
+</div>
+<div class="modal hidden" id="modal">
+  <div class="sheet">
+    <h2 id="modalTitle"></h2>
+    <p id="modalText"></p>
+    <div class="row end">
+      <button class="ghost" id="modalCancel">Cancel</button>
+      <button class="primary" id="modalOk">OK</button>
+    </div>
+  </div>
+</div>
+<script src="/app/app.js"></script>
+</body>
+</html>

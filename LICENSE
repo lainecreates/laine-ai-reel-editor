@@ -1,0 +1,75 @@
+Laine AI Reel Editor - Customer License
+
+Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
+
+1. WHO MAY USE IT
+
+   A "Licensed User" is a person who bought the Laine AI Reel Editor guide
+   from Laine Levette or an authorized seller. The source code is publicly
+   visible on GitHub so it is easy to install; being able to download it
+   does not by itself grant a license.
+
+2. WHAT YOU MAY DO
+
+   If you are a Licensed User, you may:
+
+   a. install and use the software on computers you own or control;
+   b. edit your own videos with it, and publish them;
+   c. edit videos for your paying clients with it;
+   d. customize the software for your own use, and keep your customized
+      version on your own computers; and
+   e. make backup copies.
+
+3. WHAT YOU MAY NOT DO
+
+   You may not resell, redistribute, sublicense or give away the software,
+   or any modified copy of it, in whole or in part, without written
+   permission from Laine Levette. Sharing a link to the official repository
+   (https://github.com/LaineCreates/laine-ai-reel-editor) so someone can buy
+   the guide is fine.
+
+   Keep this license and the copyright notice with every copy you make.
+
+4. YOUR CONTENT STAYS YOURS
+
+   Videos, brand settings, fonts, sounds, images and other files you create
+   or upload stay yours. Laine Levette gets no rights to them. The software
+   runs on your computer and does not send your videos to Laine Levette.
+
+5. THIRD-PARTY SOFTWARE
+
+   The software works with free tools that you install from their official
+   sources, including FFmpeg, whisper.cpp and its speech model, Node.js,
+   Google Chrome, Homebrew and Apple's developer tools. They are not part of
+   this software. Each is covered by its own license or terms, which apply
+   to your use of it. Claude and Claude Code are provided by Anthropic under
+   Anthropic's terms; you need your own Claude plan.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NON-INFRINGEMENT. Keep your original videos: the
+   software never changes them, but you are responsible for your own
+   backups.
+
+7. LIMITATION OF LIABILITY
+
+   TO THE EXTENT ALLOWED BY LAW, LAINE LEVETTE IS NOT LIABLE FOR ANY
+   INDIRECT, INCIDENTAL, SPECIAL OR CONSEQUENTIAL DAMAGES, OR FOR LOST DATA,
+   CONTENT, PROFITS OR BUSINESS, ARISING FROM THE USE OF THE SOFTWARE. LAINE
+   LEVETTE'S TOTAL LIABILITY IS LIMITED TO THE AMOUNT YOU PAID FOR THE
+   GUIDE.
+
+8. ENDING THE LICENSE
+
+   This license ends automatically if you break it. When it ends, stop
+   using the software and delete your copies. Sections 4, 6 and 7 continue
+   to apply.
+
+9. GOVERNING LAW
+
+   This license is governed by the laws of the State of Texas, United
+   States.
+
+Questions or permission requests: softworkbrand@gmail.com

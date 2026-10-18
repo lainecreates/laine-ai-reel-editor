@@ -1,0 +1,25 @@
+{
+  "_comment": "The clean, neutral look every reel uses until the customer finishes brand onboarding. Shipped with the editor; never pinned to a reel.",
+  "answers": {
+    "colors": ["#FFFFFF", "#1C1C1E", "#F2F2F2"],
+    "fonts": {"headline": "Avenir Next", "body": "Avenir Next"},
+    "headline": "none",
+    "caption_style": "phrase_lines",
+    "caption_position": "lower_third",
+    "caption_size": "medium",
+    "caption_animation": "fade",
+    "caption_emphasis": "none",
+    "caption_case": "as_spoken",
+    "caption_color": "white",
+    "pacing": "natural",
+    "zoom_style": "subtle",
+    "zoom_frequency": "moderate",
+    "graphics_density": "minimal",
+    "graphics_elements": [],
+    "sticky_font": "body",
+    "sfx": "none",
+    "music": "none",
+    "aesthetic": "clean_minimal",
+    "personality": "clear, friendly"
+  }
+}

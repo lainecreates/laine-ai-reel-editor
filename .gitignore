@@ -1,0 +1,24 @@
+# Your own files: never part of the editor, never uploaded by updates
+brand/*
+!brand/brand.example.json
+!brand/neutral.json
+!brand/.gitkeep
+assets/library/
+assets/sfx/generated/
+assets/fonts/*
+!assets/fonts/.gitkeep
+assets/sfx/*
+!assets/sfx/.gitkeep
+workspace/*
+!workspace/.gitkeep
+config/settings.json
+config/.env
+models/*
+!models/.gitkeep
+CLAUDE.local.md
+dist/
+tests/.fixtures/
+
+.DS_Store
+__pycache__/
+*.part

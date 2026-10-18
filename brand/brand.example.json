@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "updated": "2026-10-17T22:40:33",
+  "name": "@yourbrand",
+  "colors": {
+    "palette": [
+      "#F2C6C2",
+      "#C9A227",
+      "#F5EFE6"
+    ],
+    "primary": "#F2C6C2",
+    "accent": "#C9A227",
+    "card_background": "#F5EFE6",
+    "card_text": "#111111",
+    "on_primary": "#111111",
+    "on_accent": "#111111",
+    "caption_text": "#FFFFFF",
+    "caption_outline": "#000000"
+  },
+  "fonts": {
+    "headline": "Playfair Display",
+    "body": "Lato",
+    "headline_file": null,
+    "body_file": null
+  },
+  "captions": {
+    "enabled": true,
+    "style": "karaoke",
+    "position": "lower_third",
+    "size": "large",
+    "size_px": 100,
+    "max_chars_per_line": 15,
+    "max_lines": 2,
+    "animation": "pop",
+    "emphasis": "accent_color",
+    "case": "as_spoken",
+    "font": "body"
+  },
+  "pacing": "tight",
+  "framing": {
+    "mode": "cover",
+    "focus_x": 0.5
+  },
+  "zooms": {
+    "style": "mixed",
+    "frequency": "moderate",
+    "scale_min": 1.08,
+    "scale_max": 1.18,
+    "min_gap_s": 5.0,
+    "focus": {
+      "x": 0.5,
+      "y": 0.38
+    }
+  },
+  "graphics": {
+    "density": "balanced",
+    "elements": [
+      "sticky_notes",
+      "text_callouts",
+      "keyword_cards",
+      "emoji",
+      "cta_card"
+    ],
+    "min_gap_s": 5.0
+  },
+  "sfx": {
+    "style": "subtle",
+    "events": [
+      "zoom_punch",
+      "cta"
+    ],
+    "gain_db": -20,
+    "min_gap_s": 1.2
+  },
+  "music": {
+    "style": "soft",
+    "file": null,
+    "gain_db": -24,
+    "duck_under_voice": true
+  },
+  "aesthetic": {
+    "preset": "soft_luxe",
+    "personality": [
+      "warm",
+      "confident",
+      "real"
+    ],
+    "tokens": {
+      "corner_radius": 28,
+      "shadow": "soft",
+      "stroke": 0,
+      "card_opacity": 0.9
+    }
+  },
+  "reference": null,
+  "answers": {
+    "colors": [
+      "#F2C6C2",
+      "#C9A227",
+      "#F5EFE6"
+    ],
+    "fonts": {
+      "headline": "Playfair Display",
+      "body": "Lato"
+    },
+    "caption_style": "karaoke",
+    "caption_position": "lower_third",
+    "caption_size": "large",
+    "caption_animation": "pop",
+    "caption_emphasis": "accent_color",
+    "caption_case": "as_spoken",
+    "pacing": "tight",
+    "zoom_style": "mixed",
+    "zoom_frequency": "moderate",
+    "graphics_density": "balanced",
+    "graphics_elements": [
+      "sticky_notes",
+      "text_callouts",
+      "keyword_cards",
+      "emoji",
+      "cta_card"
+    ],
+    "sfx": "subtle",
+    "music": "soft",
+    "aesthetic": "soft_luxe",
+    "personality": "warm, confident, real",
+    "handle": "@yourbrand",
+    "reference_reel": null
+  },
+  "_comment": "Example of a compiled profile. Yours is created by onboarding (reel.py brand ...), not by copying this file."
+}

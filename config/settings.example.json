@@ -1,0 +1,5 @@
+{
+  "_comment": "Copied to config/settings.json by install.sh. All keys optional: tools are found automatically. Set \"tools\": {\"ffmpeg\": \"/path\"} only if a tool lives somewhere unusual.",
+  "whisper_model": "models/ggml-small.en.bin",
+  "protected_paths": []
+}
