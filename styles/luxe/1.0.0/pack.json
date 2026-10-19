@@ -1,0 +1,267 @@
+{
+  "id": "luxe",
+  "version": "1.0.0",
+  "name": "Luxe",
+  "description": "Quiet, expensive and unhurried: light serif type with wide spacing, fine drawn lines, lots of space, slow graceful motion, soft shimmering sounds.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "phrase_lines",
+        "animation": "rise",
+        "emphasis": "italic"
+      },
+      "treatment": {
+        "font": "body",
+        "weight": 400,
+        "letter_spacing": ".02em",
+        "in_s": 0.45
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "luxe.hook",
+        "headline_bar": "luxe.headline_bar",
+        "key_phrase": "luxe.key_phrase",
+        "stat": "luxe.stat",
+        "list": "luxe.list",
+        "question_list": "luxe.question_list",
+        "cta": "luxe.cta",
+        "lower_third": "luxe.lower_third",
+        "reaction": "luxe.reaction",
+        "pointer": "luxe.pointer",
+        "quote": "luxe.quote",
+        "contrast": "luxe.contrast",
+        "tip": "luxe.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "rules",
+            "name": "Between fine rules"
+          },
+          {
+            "id": "frame",
+            "name": "Thin frame",
+            "fits": {
+              "needs_decoration": "graphic_border"
+            }
+          },
+          {
+            "id": "side",
+            "name": "Side rule"
+          }
+        ],
+        "list": [
+          {
+            "id": "centred",
+            "name": "Centred numbered list"
+          },
+          {
+            "id": "roman",
+            "name": "Roman numerals, left"
+          }
+        ],
+        "stat": [
+          {
+            "id": "numeral",
+            "name": "Fine numeral"
+          },
+          {
+            "id": "numeral_words",
+            "name": "Numeral with its words"
+          }
+        ],
+        "cta": [
+          {
+            "id": "rules",
+            "name": "Between rules"
+          },
+          {
+            "id": "signature",
+            "name": "Underlined signature"
+          }
+        ],
+        "quote": [
+          {
+            "id": "mark",
+            "name": "Large quotation mark"
+          },
+          {
+            "id": "frame",
+            "name": "Framed quote",
+            "fits": {
+              "needs_decoration": "graphic_border"
+            }
+          }
+        ],
+        "contrast": [
+          {
+            "id": "strike",
+            "name": "Crossed out, then the truth"
+          },
+          {
+            "id": "pair",
+            "name": "Side by side"
+          }
+        ],
+        "tip": [
+          {
+            "id": "note",
+            "name": "A note"
+          },
+          {
+            "id": "numbered",
+            "name": "Nº label"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "slow fade-and-rise, drawn lines, no bounce"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "swish",
+        "graphic_in": "shimmer",
+        "emoji": "shimmer",
+        "cta": "chime",
+        "headline": "chime",
+        "tick": "shimmer"
+      },
+      "gain_offset_db": -4,
+      "recipes": {
+        "shimmer": {
+          "src": "aevalsrc='0.25*sin(2*PI*2093*t)*exp(-3*t)+0.2*sin(2*PI*3136*t)*exp(-4*t)+0.15*sin(2*PI*4186*t)*exp(-5*t)':s=48000:d=1.4",
+          "filters": "afade=t=in:st=0:d=0.08,aecho=0.7:0.6:60|120:0.35|0.25,volume=1.4",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "swish": {
+          "src": "anoisesrc=color=white:amplitude=0.5:duration=0.9:sample_rate=48000",
+          "filters": "highpass=f=2500,lowpass=f=9000,afade=t=in:st=0:d=0.45:curve=exp,afade=t=out:st=0.45:d=0.45,volume=5",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "chime": {
+          "src": "aevalsrc='0.4*sin(2*PI*1568*t)*exp(-2.5*t)+0.2*sin(2*PI*2349*t)*exp(-3.5*t)':s=48000:d=1.8",
+          "filters": "afade=t=in:st=0:d=0.01,afade=t=out:st=1.5:d=0.3",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": true,
+      "graphic_border": false,
+      "emoji_shadow": false
+    },
+    "composition": {
+      "default": {
+        "align": "center",
+        "w": 820,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "w": 880,
+          "h": 300
+        },
+        "list": {
+          "w": 820,
+          "list_head": 40,
+          "row_h": 112,
+          "chars_per_row": 24
+        },
+        "question_list": {
+          "w": 820,
+          "list_head": 40,
+          "row_h": 112,
+          "chars_per_row": 24
+        },
+        "stat": {
+          "w": 640,
+          "h": 280
+        },
+        "cta": {
+          "w": 860,
+          "h": 160,
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 120,
+          "h": 120
+        },
+        "pointer": {
+          "w": 180,
+          "h": 180
+        },
+        "lower_third": {
+          "w": 620,
+          "h": 110,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "w": 760,
+          "h": 90
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "subtle",
+      "frequency": "rare",
+      "scale_min": 1.03,
+      "scale_max": 1.06,
+      "min_gap_s": 8
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#1F1B18",
+        "#C8A97E",
+        "#F4EDE4"
+      ],
+      [
+        "#5E2750",
+        "#D8B4A0",
+        "#F7F1EC"
+      ],
+      [
+        "#2F3E46",
+        "#B9A586",
+        "#EEE9E2"
+      ]
+    ],
+    "fonts": [
+      "Playfair Display / Lato",
+      "Cormorant Garamond / Montserrat"
+    ]
+  }
+}

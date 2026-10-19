@@ -27,7 +27,7 @@ from laine_reel import brand, config, pipeline, reference, review, tools  # noqa
 
 def brand_mod_effective(reel_root):
     return brand.effective(reel_root) if reel_root else config.load_brand()
-from laine_reel.project import Reel, list_reels, read_json  # noqa: E402
+from laine_reel.project import Reel, list_reels, read_json, write_json  # noqa: E402
 
 
 def cmd_doctor(args):
@@ -86,6 +86,10 @@ def cmd_words(args):
     """Numbered transcript with cleanup results, for Claude's review step."""
     root = Path(args.reel).expanduser().resolve()
     words = read_json(root / "transcript.json")["words"]
+    from laine_reel import timeline
+    keep = read_json(root / "edl.json")["keep"] if (root / "edl.json").exists() else None
+    print("Word numbers here are for clean-up (cleanup.review.json). Times: in the raw clip, then "
+          "[on the reel]. creative-context numbers the reel's words separately.\n")
     cpath = root / "cleanup.json"
     cands = read_json(cpath)["candidates"] if cpath.exists() else []
     removed = set(read_json(cpath).get("removed_words", [])) if cpath.exists() else set()
@@ -93,8 +97,11 @@ def cmd_words(args):
     for i, w in enumerate(words):
         mark = "~~" if i in removed else ""
         line.append(f"[{i}]{mark}{w['text']}{mark}")
+        if len(line) == 1:
+            t0 = w["start"]
         if w["text"].rstrip().endswith((".", "?", "!")) or len(line) >= 14:
-            print(f"{w['start']:7.2f}s  " + " ".join(line))
+            on = timeline.source_to_output(t0, keep) if keep else None
+            print(f"{t0:7.2f}s [{'%6.2fs' % on if on is not None else '   cut '}]  " + " ".join(line))
             line = []
     if line:
         print("         " + " ".join(line))
@@ -266,15 +273,17 @@ def cmd_edit(args):
     print("Removed: " + ("; ".join(f'"{t}"' for t in removed) if removed else "pauses only"))
     print(f"Checks: {'all passed' if result['ok'] else result['checks']}")
     edit = read_json(reel.path("edit.json"))
-    print(f"Plan: {len(edit['captions']['items'])} captions, {len(edit['zooms'])} zooms, "
-          f"{len(edit['graphics'])} graphics, {len(edit['sfx'])} sound effects")
+    print(f"Captions: {len(edit['captions']['items'])}. Graphics and zooms: none yet - they come "
+          "from the creative plan (next step), not from automatic rules.")
     hstyle = config.load_brand().get("headline", {}).get("style", "none")
+    print("NEXT 1 - CREATIVE PLAN: run `python3 scripts/reel.py creative-context "
+          f'"{reel.root}"`, write creative.json (see the skill), check it with `reel.py plan`.')
     if hstyle != "none":
-        print("HEADLINE NEEDED (brand headline: " + hstyle + ")")
+        print("HEADLINE (brand headline: " + hstyle + "): chosen automatically from the plan's hook - "
+              f"don't ask. Write the hook + 2 alternatives to {sugg} for the review page. "
+              "Pass --headline only if the customer gave one.")
         print(f"Opening words: {opening}")
-        print(f"Write 3 suggestions to {sugg}, ask the customer, then:")
-    print(f'NEXT: python3 scripts/reel.py finish "{reel.root}"' +
-          (' --headline "<their choice>"' if hstyle != "none" else ""))
+    print(f'NEXT 2 - RENDER: python3 scripts/reel.py finish "{reel.root}"')
     return 0 if result["ok"] else 2
 
 
@@ -289,18 +298,31 @@ def cmd_finish(args):
         return 1
     hstyle = brand.effective(reel.root).get("headline", {}).get("style", "none")
     if hstyle != "none":
-        if args.choose_for_me:
-            args.headline = review.choose_headline(reel)
-            print(f"Headline chosen for you: {args.headline}")
         if not args.headline:
-            print("This brand uses a headline: pass --headline \"...\" or --choose-for-me.")
+            # no interruption: the strongest headline is the plan's hook (written from what
+            # they say); the customer can change it on the review page
+            from laine_reel import creative
+            args.headline = creative.hook_text(reel) or review.choose_headline(reel)
+            print(f"Headline chosen for you (change it any time on the review page): {args.headline}")
+        if not args.headline:
+            print("No headline could be chosen (no creative plan and no transcript).")
             return 1
         import json as _j
         op = reel.path("edit.overrides.json")
         ov = read_json(op) if op.exists() else {}
         ov["headline"] = {"text": args.headline.strip()}
         op.write_text(_j.dumps(ov, indent=2, ensure_ascii=False) + "\n")
-    pipeline.stage_design(reel)
+        from laine_reel import creative
+        creative.set_headline(reel, args.headline.strip())
+    if not reel.path("creative.json").exists() and not args.rules:
+        print("No creative plan yet. Run `reel.py creative-context` and write creative.json "
+              "(the content-aware plan), or pass --rules to use the old automatic rules.")
+        return 1
+    try:
+        pipeline.stage_design(reel)
+    except RuntimeError as e:
+        print(str(e))
+        return 2
     out, checks = pipeline.stage_final(reel, preview=args.preview)
     print("\n=== EDIT STEP 2 DONE ===")
     print(f"Video: {out}")
@@ -311,8 +333,32 @@ def cmd_finish(args):
 
 def cmd_plan(args):
     reel = Reel(Path(args.reel).expanduser().resolve())
-    pipeline.stage_design(reel)
+    try:
+        edit = pipeline.stage_design(reel)
+    except RuntimeError as e:
+        print(str(e))
+        return 2
+    cr = edit.get("creative", {})
+    print(("Creative plan used: " + (cr.get("summary") or "") + f" ({cr.get('moments')} moments)")
+          if cr.get("used") else "No creative plan (creative.json): graphics from the fallback rules.")
     print(f"Plan: {reel.path('edit-plan.md')}")
+    return 0
+
+
+def cmd_creative_context(args):
+    """What Claude needs to write creative.json: the numbered transcript, the
+    style and the customer's rules, allowed intents, limits."""
+    import json as _j
+    from laine_reel import creative
+    reel = Reel(Path(args.reel).expanduser().resolve())
+    words = read_json(reel.path("transcript.cut.json"))["words"]
+    dur = read_json(reel.path("edl.json"))["stats"]["output_duration"]
+    prof = brand.effective(reel.root)
+    ctx = creative.context(words, dur, prof, brand.reel_answers(reel.root), reel.root.name)
+    out = reel.path("review") / "creative-context.json"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(_j.dumps(ctx, indent=1, ensure_ascii=False))
+    print(_j.dumps(ctx, indent=1, ensure_ascii=False))
     return 0
 
 
@@ -411,7 +457,71 @@ def cmd_brand(args):
         print("This reel now uses your current saved defaults" +
               (f" (changed: {', '.join(changed)}). Render a new version to see it." if changed else "."))
         return 0
-    print("actions: status, next, answer, finish, show, history, restore, use-defaults")
+    if act == "set":
+        # Claude saves preferences given in everyday words, as exact settings
+        import json as _j
+        if not args.rest:
+            print("usage: reel.py brand set '<json settings>' [--scope default|reel --reel <reel>]")
+            return 1
+        try:
+            changes = _j.loads(args.rest[0])
+        except ValueError as e:
+            print(f"NOT SAVED: that isn't valid JSON ({e})")
+            return 3
+        scope = args.scope or "default"
+        root = Path(args.reel).expanduser().resolve() if args.reel else None
+        if scope == "reel" and not root:
+            print("NOT SAVED: --scope reel needs --reel <reel folder>")
+            return 3
+        try:
+            brand.save_settings(changes, scope, root)
+        except brand.AnswerError as e:
+            print(f"NOT SAVED: {e}")
+            return 3
+        if root:
+            review.mark_settings_changed(Reel(root), list(changes), scope)
+        print(f"Saved for {'this reel only' if scope == 'reel' else 'your saved defaults (future reels)'}:")
+        prof = brand.effective(root) if root else config.load_brand()
+        print("\n".join("  " + l for l in brand.explain(prof)))
+        return 0
+    if act == "explain":
+        root = Path(args.reel).expanduser().resolve() if args.reel else None
+        prof = brand.effective(root) if root else (config.load_brand() or brand.neutral_profile())
+        print("\n".join(brand.explain(prof)))
+        return 0
+    if act == "suggest":
+        import json as _j
+        print(_j.dumps(brand.suggestions(args.rest[0] if args.rest else None), indent=1))
+        return 0
+    if act == "reference":
+        # measure a reference reel's editing style (any time); changes no settings
+        import json as _j
+        if not args.rest:
+            print('usage: reel.py brand reference "<path to a reel you love>"')
+            return 1
+        try:
+            ref = reference.analyse(args.rest[0], transcribe_speech=not args.no_transcribe)
+        except ValueError as e:
+            print(f"Can't use that file: {e}")
+            return 3
+        (config.brand_dir() / "reference").mkdir(parents=True, exist_ok=True)
+        (config.brand_dir() / "reference" / "reference.json").write_text(_j.dumps(ref, indent=1))
+        print(_j.dumps({k: v for k, v in ref.items() if k != "file"}, indent=1))
+        print("\nLook at the contact sheet, write what you see to brand/reference/traits.json, then ask "
+              "what they like about it (reel.py brand set '{\"reference_prefs\": {...}}').")
+        return 0
+    if act == "reference-suggest":
+        import json as _j
+        from laine_reel import reference_style
+        rp = config.brand_dir() / "reference" / "reference.json"
+        ref = _j.loads(rp.read_text()) if rp.exists() else (config.load_brand().get("reference") or {})
+        prefs = (brand.load_progress().get("answers") or {}).get("reference_prefs") or {}
+        sug = reference_style.inspired_settings(reference_style.load(), ref, prefs)
+        print(_j.dumps(sug, indent=1))
+        print("\nProposals only: read them to the customer; save only what they agree to (brand set).")
+        return 0
+    print("actions: status, next, answer, finish, show, history, restore, use-defaults, set, explain, suggest, "
+          "reference, reference-suggest")
     return 1
 
 
@@ -433,6 +543,44 @@ def cmd_library(args):
             a.get("family") or f"{a.get('width')}x{a.get('height')}"
         print(f"{a['id']:12} {a['kind']:6} {a.get('category', ''):10} {a['name']:30} {extra}"
               + ("  (archived)" if a.get("archived") else ""))
+    return 0
+
+
+def cmd_remove_phrase(args):
+    """Remove a phrase by quoting it ("they started", the first time it's said).
+    Writes cleanup.review.json; `recut --check-speech` makes and verifies the cut."""
+    from laine_reel import cleanup
+    reel = Reel(Path(args.reel).expanduser().resolve())
+    words = read_json(reel.path("transcript.json"))["words"]
+    found = cleanup.find_phrase(words, args.phrase, args.occurrence)
+    if isinstance(found, str):
+        print(f"NOT ADDED: {found}")
+        return 3
+    p = reel.path("cleanup.review.json")
+    rv = read_json(p) if p.exists() else {"remove": [], "keep": []}
+    rv.setdefault("remove", []).append({"phrase": args.phrase, "occurrence": args.occurrence,
+                                        "type": "requested", "reason": args.reason or "customer request"})
+    write_json(p, rv)
+    print(f"Will remove words {found[0]}-{found[1]}: \"{' '.join(w['text'] for w in words[found[0]:found[1] + 1])}\" "
+          f"({args.occurrence} time it's said)")
+    print("Next: python3 scripts/reel.py recut <reel> --check-speech")
+    return 0
+
+
+def cmd_carousel(args):
+    """Add a spinning image carousel to one reel (a customer request; never a default)."""
+    from laine_reel import carousel
+    reel = Reel(Path(args.reel).expanduser().resolve())
+    opts = {k: getattr(args, k) for k in carousel.DEFAULTS if getattr(args, k)}
+    g, problems = carousel.request(reel, [x.strip() for x in args.images.split(",") if x.strip()],
+                                   args.at, args.duration, **opts)
+    if problems:
+        print("NOT ADDED:\n  - " + "\n  - ".join(problems))
+        return 3
+    o = carousel.options(g)
+    print(f"Carousel added: {len(g['assets'])} images at {g['start']:.1f}-{g['end']:.1f}s, "
+          f"{o['place'].replace('_', ' ')}, {o['size']}, {o['speed']}, {o['direction']}, {o['motion']}")
+    print("Next: python3 scripts/reel.py final <reel> --replan")
     return 0
 
 
@@ -473,6 +621,22 @@ def main(argv=None):
     lb.add_argument("file", nargs="?")
     lb.add_argument("--name")
     lb.add_argument("--category")
+    rp = sub.add_parser("remove-phrase", help='remove a quoted phrase: "they started" --occurrence first')
+    rp.add_argument("reel")
+    rp.add_argument("phrase")
+    rp.add_argument("--occurrence", default="first", help="first | second | last | 1 | 2 ...")
+    rp.add_argument("--reason")
+    cs = sub.add_parser("carousel", help="add a spinning carousel of library images to one reel")
+    cs.add_argument("reel")
+    cs.add_argument("--images", required=True, help="library ids or names, comma-separated (2-8)")
+    cs.add_argument("--at", type=float, required=True, help="start time on the reel as it is now (s)")
+    cs.add_argument("--duration", type=float, default=5.0)
+    from laine_reel import carousel as _c
+    cs.add_argument("--place", choices=_c.PLACES)
+    cs.add_argument("--size", choices=list(_c.SIZES))
+    cs.add_argument("--speed", choices=list(_c.SPEEDS))
+    cs.add_argument("--direction", choices=_c.DIRECTIONS)
+    cs.add_argument("--motion", choices=list(_c.MOTIONS))
     wd = sub.add_parser("words", help="numbered transcript + cleanup candidates")
     wd.add_argument("reel")
     pl = sub.add_parser("plan", help="plan captions, zooms, graphics and sfx from the brand")
@@ -501,9 +665,12 @@ def main(argv=None):
     fi.add_argument("--focus-x", type=float, default=None)
     br = sub.add_parser("brand", help="brand onboarding: status | next | answer | finish | show")
     br.add_argument("action", choices=["status", "next", "answer", "finish", "show", "history",
-                                           "restore", "use-defaults"])
+                                           "restore", "use-defaults", "set", "explain", "suggest",
+                                           "reference", "reference-suggest"])
     br.add_argument("rest", nargs="*")
     br.add_argument("--json", action="store_true", help="next: print the question as JSON")
+    br.add_argument("--scope", choices=["default", "reel"], help="set: your saved defaults or this reel only")
+    br.add_argument("--reel", help="set/explain: the reel folder")
     br.add_argument("--no-transcribe", action="store_true",
                     help="finish: skip measuring the reference reel's speaking pace")
 
@@ -529,10 +696,13 @@ def main(argv=None):
     ed.add_argument("--frame", choices=["cover", "blur"])
     ed.add_argument("--focus-x", type=float, default=None)
     ed.add_argument("--allow-test-brand", action="store_true", help=argparse.SUPPRESS)
+    cc = sub.add_parser("creative-context", help="what Claude needs to write the creative plan")
+    cc.add_argument("reel")
     fn = sub.add_parser("finish", help='"Edit my reel" step 2: headline + render version 1')
+    fn.add_argument("--rules", action="store_true", help="no creative plan: use the old automatic rules")
     fn.add_argument("reel")
     fn.add_argument("--headline")
-    fn.add_argument("--choose-for-me", action="store_true",
+    fn.add_argument("--choose-for-me", action="store_true",  # the default now; kept for old instructions
                     help="use the strongest suggested headline")
     fn.add_argument("--preview", action="store_true")
     fn.add_argument("--allow-test-brand", action="store_true", help=argparse.SUPPRESS)
@@ -552,11 +722,12 @@ def main(argv=None):
     edit_flags(rc)
 
     args = ap.parse_args(argv)
-    handler = {"doctor": cmd_doctor, "run": cmd_run, "recut": cmd_recut, "list": cmd_list,
+    handler = {"creative-context": cmd_creative_context, "doctor": cmd_doctor, "run": cmd_run, "recut": cmd_recut, "list": cmd_list,
                "words": cmd_words, "plan": cmd_plan, "brand": cmd_brand, "final": cmd_final,
                "review": cmd_review, "apply-review": cmd_apply_review, "locate": cmd_locate,
                "edit": cmd_edit, "finish": cmd_finish, "library": cmd_library,
-               "verify-assets": cmd_verify_assets}
+               "verify-assets": cmd_verify_assets, "carousel": cmd_carousel,
+               "remove-phrase": cmd_remove_phrase}
     try:
         return handler[args.cmd](args)
     except (tools.ToolError, RuntimeError, FileNotFoundError, ValueError) as e:

@@ -1,0 +1,254 @@
+{
+  "id": "bold",
+  "version": "1.0.0",
+  "name": "Bold",
+  "description": "Loud and certain, but still: huge heavy upper-case type, solid colour slabs and full-width bands, hard edges, instant snaps, punch zooms, deep hits and stamps.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "word_pop",
+        "animation": "none",
+        "emphasis": "highlight_block"
+      },
+      "treatment": {
+        "font": "headline",
+        "weight": 900,
+        "letter_spacing": "-.01em"
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "bold.hook",
+        "headline_bar": "bold.headline_bar",
+        "key_phrase": "bold.key_phrase",
+        "stat": "bold.stat",
+        "list": "bold.list",
+        "question_list": "bold.question_list",
+        "cta": "bold.cta",
+        "lower_third": "bold.lower_third",
+        "reaction": "bold.reaction",
+        "pointer": "bold.pointer",
+        "quote": "bold.quote",
+        "contrast": "bold.contrast",
+        "tip": "bold.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "slab",
+            "name": "Full-width slab"
+          },
+          {
+            "id": "twotone",
+            "name": "Two-tone stack"
+          },
+          {
+            "id": "giant",
+            "name": "Giant first word"
+          }
+        ],
+        "list": [
+          {
+            "id": "blocks",
+            "name": "Numbered blocks"
+          },
+          {
+            "id": "bignums",
+            "name": "Big numbers"
+          }
+        ],
+        "stat": [
+          {
+            "id": "slab",
+            "name": "Number slab"
+          },
+          {
+            "id": "fill",
+            "name": "Fill bar",
+            "fits": {
+              "needs_percent": true
+            }
+          }
+        ],
+        "cta": [
+          {
+            "id": "band",
+            "name": "Full-width band"
+          },
+          {
+            "id": "stamp",
+            "name": "Rotated stamp"
+          }
+        ],
+        "quote": [
+          {
+            "id": "marks",
+            "name": "Giant quote marks"
+          }
+        ],
+        "contrast": [
+          {
+            "id": "crossed",
+            "name": "Crossed-out block, then the answer"
+          }
+        ],
+        "tip": [
+          {
+            "id": "dothis",
+            "name": "DO THIS stamp"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "instant slams, hard cuts out"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "hit",
+        "graphic_in": "stamp",
+        "emoji": "stamp",
+        "cta": "hit",
+        "headline": "hit",
+        "tick": "thud"
+      },
+      "gain_offset_db": 2,
+      "recipes": {
+        "hit": {
+          "src": "aevalsrc='0.95*sin(2*PI*t*(140-160*t))*exp(-6*t)':s=48000:d=0.6",
+          "filters": "lowpass=f=500,volume=1.6",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "stamp": {
+          "src": "anoisesrc=color=brown:amplitude=0.9:duration=0.25:sample_rate=48000",
+          "filters": "lowpass=f=900,afade=t=in:st=0:d=0.004,afade=t=out:st=0.03:d=0.22,volume=9",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "thud": {
+          "src": "aevalsrc='0.9*sin(2*PI*70*t)*exp(-9*t)':s=48000:d=0.4",
+          "filters": "volume=1.6",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": true,
+      "graphic_border": false,
+      "emoji_shadow": false
+    },
+    "composition": {
+      "default": {
+        "align": "left",
+        "w": 940,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "align": "full",
+          "w": 1080,
+          "h": 340
+        },
+        "stat": {
+          "w": 640,
+          "h": 360
+        },
+        "cta": {
+          "align": "full",
+          "w": 1080,
+          "h": 200,
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 240,
+          "h": 240
+        },
+        "pointer": {
+          "w": 240,
+          "h": 240
+        },
+        "lower_third": {
+          "w": 560,
+          "h": 110,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "align": "full",
+          "w": 1080,
+          "h": 110
+        },
+        "list": {
+          "w": 960,
+          "list_head": 20,
+          "row_h": 86,
+          "chars_per_row": 20
+        },
+        "question_list": {
+          "w": 960,
+          "list_head": 20,
+          "row_h": 86,
+          "chars_per_row": 20
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "punchy",
+      "frequency": "moderate",
+      "scale_min": 1.15,
+      "scale_max": 1.2,
+      "min_gap_s": 4
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#FF2E63",
+        "#111111",
+        "#FFFFFF"
+      ],
+      [
+        "#FFD000",
+        "#111111",
+        "#FFFFFF"
+      ],
+      [
+        "#2541B2",
+        "#FF5A1F",
+        "#FFFFFF"
+      ]
+    ],
+    "fonts": [
+      "Bebas Neue / Montserrat",
+      "Anton / Inter"
+    ]
+  }
+}

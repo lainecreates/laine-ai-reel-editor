@@ -1,0 +1,264 @@
+{
+  "id": "playful",
+  "version": "1.0.0",
+  "name": "Playful",
+  "description": "Fun and hand-made: chunky rounded type, tilted stickers, speech bubbles and starbursts, scattered layouts, squash-and-stretch bounces, boops and pops.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "word_pop",
+        "animation": "squash",
+        "emphasis": "color_tilt"
+      },
+      "treatment": {
+        "font": "headline",
+        "weight": 900,
+        "in_s": 0.25
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "playful.hook",
+        "headline_bar": "playful.headline_bar",
+        "key_phrase": "playful.key_phrase",
+        "stat": "playful.stat",
+        "list": "playful.list",
+        "question_list": "playful.question_list",
+        "cta": "playful.cta",
+        "lower_third": "playful.lower_third",
+        "reaction": "playful.reaction",
+        "pointer": "playful.pointer",
+        "quote": "playful.quote",
+        "contrast": "playful.contrast",
+        "tip": "playful.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "sticker",
+            "name": "Tilted sticker"
+          },
+          {
+            "id": "bubble",
+            "name": "Speech bubble"
+          },
+          {
+            "id": "badge",
+            "name": "Round badge"
+          }
+        ],
+        "list": [
+          {
+            "id": "stickers",
+            "name": "Stacked stickers"
+          },
+          {
+            "id": "notebook",
+            "name": "Notebook with doodle ticks"
+          }
+        ],
+        "stat": [
+          {
+            "id": "starburst",
+            "name": "Starburst"
+          },
+          {
+            "id": "blob",
+            "name": "Number in a blob"
+          }
+        ],
+        "cta": [
+          {
+            "id": "pill",
+            "name": "Pill button"
+          },
+          {
+            "id": "arrow_sticker",
+            "name": "Sticker with doodle arrow"
+          }
+        ],
+        "quote": [
+          {
+            "id": "bubble",
+            "name": "Speech bubble"
+          },
+          {
+            "id": "thought",
+            "name": "Thought bubble"
+          }
+        ],
+        "contrast": [
+          {
+            "id": "xcheck",
+            "name": "\u274c then \u2705 stickers"
+          }
+        ],
+        "tip": [
+          {
+            "id": "postit",
+            "name": "\ud83d\udca1 sticky note"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "squash-and-stretch, wobble, scattered stagger"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "slide",
+        "graphic_in": "boop",
+        "emoji": "bubble",
+        "cta": "plink",
+        "headline": "boop",
+        "tick": "plink"
+      },
+      "gain_offset_db": 0,
+      "recipes": {
+        "boop": {
+          "src": "aevalsrc='0.8*sin(2*PI*t*(420+1800*t))*exp(-14*t)':s=48000:d=0.22",
+          "filters": "afade=t=out:st=0.18:d=0.04",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "plink": {
+          "src": "aevalsrc='0.7*sin(2*PI*1760*t)*exp(-22*t)+0.3*sin(2*PI*3520*t)*exp(-30*t)':s=48000:d=0.3",
+          "filters": "anull",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "bubble": {
+          "src": "aevalsrc='0.8*sin(2*PI*t*(600+5200*t))*exp(-26*t)':s=48000:d=0.14",
+          "filters": "highpass=f=200",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "slide": {
+          "src": "aevalsrc='0.5*sin(2*PI*t*(700+1400*t))*(1-exp(-30*t))*exp(-3*t)':s=48000:d=0.45",
+          "filters": "afade=t=out:st=0.35:d=0.1",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": true,
+      "graphic_border": true,
+      "emoji_shadow": true
+    },
+    "composition": {
+      "default": {
+        "align": "scatter",
+        "w": 700,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "w": 820,
+          "h": 260,
+          "align": "center"
+        },
+        "stat": {
+          "w": 380,
+          "h": 380
+        },
+        "list": {
+          "w": 700,
+          "list_head": 20,
+          "row_h": 104,
+          "chars_per_row": 22
+        },
+        "question_list": {
+          "w": 700,
+          "list_head": 20,
+          "row_h": 104,
+          "chars_per_row": 22
+        },
+        "cta": {
+          "w": 760,
+          "h": 190,
+          "align": "center",
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 220,
+          "h": 220
+        },
+        "pointer": {
+          "w": 220,
+          "h": 220
+        },
+        "lower_third": {
+          "w": 520,
+          "h": 170,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "w": 760,
+          "h": 110,
+          "align": "center"
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "mixed",
+      "frequency": "moderate",
+      "scale_min": 1.08,
+      "scale_max": 1.14,
+      "min_gap_s": 4
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#FF4FA0",
+        "#FFD23F",
+        "#3BCEAC"
+      ],
+      [
+        "#7B61FF",
+        "#FF8A3D",
+        "#FFF3B0"
+      ],
+      [
+        "#00B4D8",
+        "#FF5D8F",
+        "#FFE066"
+      ]
+    ],
+    "fonts": [
+      "Poppins / Poppins",
+      "Baloo 2 / Nunito"
+    ]
+  }
+}

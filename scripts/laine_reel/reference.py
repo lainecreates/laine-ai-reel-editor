@@ -9,7 +9,9 @@ ffmpeg/ffprobe (scene scores, ebur128) and optionally whisper.cpp:
 - words per minute                 -> how tight the pacing is
 - loudness                         -> how loud they master
 and saves a small contact sheet of frames to brand/reference/ so Claude can
-look at the visual style (caption placement, colours, graphics).
+look at the visual style (caption placement, colours, graphics). The editing
+style itself (captions, graphics, zooms, colour mood) is measured by
+reference_style.py.
 """
 
 import re
@@ -46,6 +48,9 @@ def analyse(path, transcribe_speech=True):
 
     sheet = _contact_sheet(path, duration)
     cpm = round(cuts / duration * 60, 1)
+    from . import reference_style
+    visual = reference_style.analyse_visual(path, duration, cut_times)
+    reference_style.save(visual)
     return {
         "file": str(path),
         "duration": round(duration, 2),
@@ -57,6 +62,7 @@ def analyse(path, transcribe_speech=True):
         "loudness_lufs": loudness,
         "contact_sheet": sheet,
         "suggests": suggest(cpm, wpm),
+        "visual": {k: v for k, v in visual.items() if k != "seen_text"},
     }
 
 

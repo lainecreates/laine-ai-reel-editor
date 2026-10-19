@@ -26,7 +26,7 @@ from .tools import require, run
 KINDS = {
     "font": {"dir": "fonts", "ext": (".ttf", ".otf"), "max_mb": 15},
     "sound": {"dir": "sounds", "ext": (".mp3", ".wav"), "max_mb": 40},
-    "image": {"dir": "images", "ext": (".png", ".jpg", ".jpeg"), "max_mb": 25},
+    "image": {"dir": "images", "ext": (".png", ".jpg", ".jpeg", ".heic", ".heif"), "max_mb": 25},
 }
 IMAGE_CATEGORIES = ["logo", "screenshot", "graphic", "photo"]
 SOUND_CATEGORIES = ["whoosh", "pop", "click", "ding", "transition", "music", "other"]
@@ -83,6 +83,45 @@ def path_of(asset_id):
     return p if p.is_file() else None
 
 
+def exif_orientation(path):
+    """EXIF orientation of a JPEG (1 = upright). Phones save portrait photos
+    sideways with 6 or 8 here; browsers show them upright."""
+    import struct
+    try:
+        data = Path(path).read_bytes()[:131072]
+    except OSError:
+        return 1
+    if data[:2] != b"\xff\xd8":
+        return 1
+    i = 2
+    while i + 4 <= len(data) and data[i] == 0xFF:
+        marker, size = data[i + 1], struct.unpack(">H", data[i + 2:i + 4])[0]
+        if marker == 0xE1 and data[i + 4:i + 10] == b"Exif\x00\x00":
+            t = data[i + 10:i + 2 + size]
+            end = "<" if t[:2] == b"II" else ">"
+            try:
+                ifd = struct.unpack(end + "I", t[4:8])[0]
+                for k in range(struct.unpack(end + "H", t[ifd:ifd + 2])[0]):
+                    e = ifd + 2 + 12 * k
+                    if struct.unpack(end + "H", t[e:e + 2])[0] == 0x0112:
+                        return struct.unpack(end + "H", t[e + 8:e + 10])[0]
+            except struct.error:
+                return 1
+            return 1
+        if marker in (0xDA, 0xD9):
+            break
+        i += 2 + size
+    return 1
+
+
+def display_size(asset):
+    """(width, height) of an image as people see it (EXIF rotation applied)."""
+    w, h = asset.get("width") or 4, asset.get("height") or 5
+    if asset.get("path") and exif_orientation(asset["path"]) in (5, 6, 7, 8):
+        w, h = h, w
+    return w, h
+
+
 # -- checking uploads -----------------------------------------------------------
 
 def _kind_for(name):
@@ -91,7 +130,7 @@ def _kind_for(name):
         if ext in spec["ext"]:
             return k
     raise LibraryError(f"{Path(name).suffix or 'that file'} isn't supported. Use TTF/OTF fonts, "
-                       "MP3/WAV sounds, or PNG/JPG images.")
+                       "MP3/WAV sounds, or PNG/JPG/HEIC images.")
 
 
 def _font_family(data):
@@ -193,10 +232,57 @@ def _slug(text):
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "asset"
 
 
+def _not_from_reference(p):
+    """A reference reel is someone else's work: it (and anything taken from it)
+    can inspire, never become one of the customer's assets."""
+    ref_dir = (config.brand_dir() / "reference").resolve()
+    p = Path(p).resolve()
+    ref_file = None
+    try:
+        from .brand import load_progress
+        ref_file = (load_progress().get("answers") or {}).get("reference_reel")
+    except Exception:
+        pass
+    if ref_dir in p.parents or (ref_file and Path(ref_file).resolve() == p):
+        raise LibraryError("That comes from your reference reel - another creator's logos, artwork and "
+                           "video are never reused. Upload your own instead.")
+
+
+HEIC_JS = config.PROJECT_ROOT / "tools" / "heic.js"
+
+
+def from_heic(data):
+    """iPhone HEIC/HEIF photo -> upright JPEG bytes (rotation baked in, full size,
+    never cropped), with macOS's own ImageIO. Nothing to install."""
+    import shutil
+    import subprocess
+    import tempfile
+    osa = shutil.which("osascript")
+    if not osa:
+        raise LibraryError("HEIC photos can only be converted on a Mac. Please export it as JPG and add that.")
+    with tempfile.TemporaryDirectory(prefix="laine-heic-") as d:
+        src, out = Path(d) / "in.heic", Path(d) / "out.jpg"
+        src.write_bytes(data)
+        r = subprocess.run([osa, "-l", "JavaScript", str(HEIC_JS), str(src), str(out)],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or not out.is_file():
+            raise LibraryError("That HEIC photo couldn't be converted; it may be damaged. "
+                               "Try exporting it as JPG.")
+        return out.read_bytes()
+
+
 def add(filename, data, name=None, category=None):
     """Store an upload in the library. Returns the new entry."""
     kind = _kind_for(filename)
+    converted = None
+    if Path(filename).suffix.lower() in (".heic", ".heif"):
+        if len(data) > KINDS["image"]["max_mb"] * 1024 * 1024:
+            raise LibraryError(f"That file is over {KINDS['image']['max_mb']} MB.")
+        data, converted = from_heic(data), Path(filename).suffix.upper().lstrip(".")
+        filename = str(Path(filename).with_suffix(".jpg"))
     info = check(kind, filename, data)
+    if converted:
+        info["converted_from"] = converted
     ext = Path(filename).suffix.lower().replace(".jpeg", ".jpg")
     aid = f"{kind[:1]}-{uuid.uuid4().hex[:8]}"
     rel = f"{KINDS[kind]['dir']}/{_slug(name or Path(filename).stem)}-{aid}{ext}"
@@ -216,7 +302,8 @@ def add(filename, data, name=None, category=None):
         category = "other"
     entry = {"id": aid, "kind": kind, "name": (name or Path(filename).stem).strip()[:60],
              "category": category or ("font" if kind == "font" else "other"), "file": rel,
-             "original_name": Path(filename).name, "bytes": len(data),
+             "original_name": Path(filename).name if not converted else
+             Path(filename).with_suffix("." + converted.lower()).name, "bytes": len(data),
              "added": _dt.datetime.now().isoformat(timespec="seconds"), **info}
     idx = load()
     idx["assets"].append(entry)
@@ -228,6 +315,7 @@ def add_file(path, name=None, category=None):
     p = config.check_not_protected(path)
     if not p.is_file():
         raise LibraryError(f"No file at {p}")
+    _not_from_reference(p)
     return add(p.name, p.read_bytes(), name=name, category=category)
 
 

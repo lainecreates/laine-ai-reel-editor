@@ -57,6 +57,9 @@ const send = (method, params = {}) => new Promise((res, rej) => {
 });
 const once = method => new Promise(resolve => waiters.push({ method, resolve }));
 
+// If Chrome stalls while loading the page (rare), give up after 60 s so the
+// caller can retry, instead of waiting forever.
+const loadWatchdog = setTimeout(() => { console.error('page load timed out'); chrome.kill(); process.exit(5); }, 60000);
 try {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
@@ -65,6 +68,7 @@ try {
   await send('Page.navigate', { url: pathToFileURL(resolve(page)).href });
   await loaded;
   await send('Runtime.evaluate', { expression: 'document.fonts.ready.then(() => 1)', awaitPromise: true });
+  clearTimeout(loadWatchdog);
 
   // Record the font stack each element really got (checked against the brand).
   const fr = await send('Runtime.evaluate', { expression: 'window.__fonts ? window.__fonts() : "[]"', returnByValue: true });
@@ -73,6 +77,13 @@ try {
   writeFileSync(join(outDir, 'fonts_loaded.json'), fl.result.value);
   const rr = await send('Runtime.evaluate', { expression: 'window.__rects ? window.__rects() : "[]"', returnByValue: true });
   writeFileSync(join(outDir, 'rects.json'), rr.result.value);
+  // Any error inside the page (e.g. a style component) fails the render loudly.
+  const er = await send('Runtime.evaluate', { expression: 'JSON.stringify(window.__errors || [])', returnByValue: true });
+  writeFileSync(join(outDir, 'errors.json'), er.result.value);
+  if (JSON.parse(er.result.value).length) { console.error('page errors: ' + er.result.value); process.exitCode = 4; }
+  // What each element really looks like (style comparison tests).
+  const sr = await send('Runtime.evaluate', { expression: 'window.__styleReport ? window.__styleReport() : "[]"', returnByValue: true });
+  writeFileSync(join(outDir, 'style_report.json'), sr.result.value);
 
   const total = Math.round(duration * fps);
   const lines = ['ffconcat version 1.0'];

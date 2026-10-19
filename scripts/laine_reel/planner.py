@@ -55,17 +55,26 @@ CTA = re.compile(r"\b(comment|dm me|link in (my )?bio|follow( me)?|save this|sha
                  r"subscribe|sign up|join)\b", re.I)
 
 
-def plan(words, duration, joins, brand, overrides=None):
-    """Return the edit plan dict."""
+def plan(words, duration, joins, brand, overrides=None, brief=None):
+    """Return the edit plan dict. With a (validated) creative plan from Claude,
+    graphics, key words and zooms follow its content-aware decisions; without
+    one, the original rules are used (Classic and scripted runs)."""
     sentences = split_sentences(words)
-    emphasis = {s[0]: pick_emphasis(words, s) for s in sentences if s}
-    emph_idx = {i for i in emphasis.values() if i is not None}
+    if brief is not None and "key_words" in brief:
+        emph_idx = set(brief["key_words"])
+    else:
+        emphasis = {s[0]: pick_emphasis(words, s) for s in sentences if s}
+        emph_idx = {i for i in emphasis.values() if i is not None}
 
     cap = brand.get("captions", {})
     captions = caption_items(words, sentences, emph_idx, cap) if cap.get("enabled") else []
-    zooms = plan_zooms(words, sentences, joins, duration, brand.get("zooms", {}))
-    graphics = plan_graphics(words, sentences, emph_idx, duration, brand)
-    sfx = plan_sfx(zooms, graphics, duration, brand.get("sfx", {}))
+    from . import creative
+    zooms = creative.zooms(brief, words, brand.get("zooms", {})) if brief else None
+    if zooms is None:
+        zooms = plan_zooms(words, sentences, joins, duration, brand.get("zooms", {}))
+    graphics = plan_graphics(words, sentences, emph_idx, duration, brand, brief=brief)
+    from . import styles
+    sfx = plan_sfx(zooms, graphics, duration, brand.get("sfx", {}), styles.resolve(brand))
     sfx_brand = brand.get("sfx", {})
     music = plan_music(brand.get("music", {}))
 
@@ -80,7 +89,7 @@ def plan(words, duration, joins, brand, overrides=None):
                                                         "animation", "emphasis", "case")},
                      "font": brand.get("fonts", {}).get("body"),
                      "colors": {"text": brand.get("colors", {}).get("caption_text"),
-                                "outline": brand.get("colors", {}).get("caption_outline"),
+                                "outline": cap.get("outline"),
                                 "emphasis": brand.get("colors", {}).get("accent")},
                      "items": captions},
         "zooms": zooms,
@@ -90,8 +99,27 @@ def plan(words, duration, joins, brand, overrides=None):
         "_sfx_brand": {"sounds": sfx_brand.get("sounds", {})},
     }
     apply_overrides(edit, overrides or {})
+    style_graphics(edit["graphics"], styles.resolve(brand))
     edit["render_requirements"] = render_requirements(edit)
     return edit
+
+
+def style_graphics(graphics, st):
+    """Give every graphic (planned or added in review) its intent, the style
+    pack's component for it, and the pack's layout preference."""
+    from . import styles
+    for g in graphics:
+        g["intent"] = styles.intent_of(g)
+        if g.get("type") == "custom":       # a per-reel custom graphic draws itself
+            g["component"] = g.get("custom_component") or g.get("component")
+            continue
+        g["component"] = styles.component_for(st, g["intent"])
+        g.setdefault("source", "review")
+        comp = styles.composition_for(st, g["intent"])
+        if comp:
+            g["comp"] = comp
+        else:
+            g.pop("comp", None)
 
 
 # -- text helpers -------------------------------------------------------------
@@ -341,11 +369,14 @@ def plan_zooms(words, sentences, joins, duration, z):
 # -- graphics -----------------------------------------------------------------
 
 def _style(brand, kind):
+    from . import styles
     c, f = brand.get("colors", {}), brand.get("fonts", {})
-    tokens = brand.get("aesthetic", {}).get("tokens", {})
-    anim = {"soft_luxe": "fade_scale", "clean_minimal": "fade", "bold_energetic": "pop",
-            "playful": "bounce", "editorial": "slide", "techy": "slide"}.get(
-        brand.get("aesthetic", {}).get("preset"), "fade")
+    st = styles.resolve(brand)
+    preset = brand.get("aesthetic", {}).get("preset")
+    shape = st["aspects"]["shape"].get("tokens_by_aesthetic", {})
+    tokens = shape.get(preset) or brand.get("aesthetic", {}).get("tokens", {})
+    motion = st["aspects"]["motion"]
+    anim = motion.get("entrance_by_aesthetic", {}).get(preset, motion.get("entrance_default", "fade"))
     bg = c.get("accent") if kind == "cta_card" else (
         "#FFF4A3" if kind == "sticky_notes" else c.get("card_background"))
     text = c.get("on_accent") if kind == "cta_card" else (
@@ -355,11 +386,19 @@ def _style(brand, kind):
             **tokens}
 
 
-def plan_graphics(words, sentences, emph_idx, duration, brand):
+def plan_graphics(words, sentences, emph_idx, duration, brand, brief=None):
     g = brand.get("graphics", {})
     elements = set(g.get("elements", []))
     if not words:
         return []
+    if brief is not None:
+        from . import creative
+        cap_pos = brand.get("captions", {}).get("position", "lower_third")
+        zone = "lower_third" if cap_pos == "upper_third" else "upper_third"
+        picked = creative.graphics(brief, words, duration, brand, zone)
+        for p in picked:
+            p["y"] = ZONE_Y[p["zone"]]
+        return _brand_extras(picked, brand, duration, elements)
     # (the logo is added after placement; it doesn't compete with other graphics)
     cap_pos = brand.get("captions", {}).get("position", "lower_third")
     zone = "lower_third" if cap_pos == "upper_third" else "upper_third"
@@ -506,6 +545,12 @@ def plan_graphics(words, sentences, emph_idx, duration, brand):
             p.get("emoji") == it.get("emoji") for p in picked)   # each emoji once per reel
         if not clash and not too_close and not full and not repeat:
             picked.append(it)
+    return _brand_extras(picked, brand, duration, elements, rules=True)
+
+
+def _brand_extras(picked, brand, duration, elements, rules=False):
+    """The logo and progress bar (brand settings, not content decisions), then
+    numbering. Content graphics come from the creative plan or the rules."""
     logo = brand.get("logo")
     if logo and logo.get("id"):
         picked.append({"type": "image", "role": "logo", "asset": logo["id"], "start": 0.0,
@@ -516,6 +561,13 @@ def plan_graphics(words, sentences, emph_idx, duration, brand):
         picked.append({"type": "progress_bar", "start": 0.0, "end": round(duration, 3),
                        "zone": "top_edge", "y": ZONE_Y["top_edge"], "reason": "watch-time cue",
                        "draft": False})
+    from . import styles
+    st = styles.resolve(brand)
+    if rules:   # a creative plan was already checked against the rules (and may hold a customer request)
+        picked = [p for p in picked if styles.intent_for(p["type"]) not in st["blocked_intents"]]
+    for p in picked:
+        p.setdefault("source", "brand" if p.get("role") == "logo" or p["type"] == "progress_bar"
+                     else "rules" if rules else "brief")
     picked.sort(key=lambda p: p["start"])
     for n, p in enumerate(picked, 1):
         p["id"] = f"g{n}"
@@ -548,10 +600,11 @@ def custom_sound(s, event):
             library.level_match_db(a) if (a and p) else 0.0)
 
 
-def plan_sfx(zooms, graphics, duration, s):
+def plan_sfx(zooms, graphics, duration, s, style=None):
     allowed = set(s.get("events", []))
-    if not allowed:
+    if not allowed or (style and style["sound_off"]):
         return []
+    by_event = dict(SFX_KIND, **((style or {}).get("aspects", {}).get("sound", {}).get("by_event", {})))
     events = []
     for z in zooms:
         if z["type"] == "punch":
@@ -567,7 +620,7 @@ def plan_sfx(zooms, graphics, duration, s):
             continue   # a watermark is silent
         elif g["type"] != "progress_bar":
             events.append(("graphic_in", g["start"], g["id"]))
-    out, last = [], -99.0
+    out, last, used = [], -99.0, {}
     for ev, t, ref in sorted(events, key=lambda e: e[1]):
         if ev == "headline" and ev not in allowed and "graphic_in" in allowed:
             ev_ok = True       # older profiles: the headline pops like other graphics
@@ -580,8 +633,16 @@ def plan_sfx(zooms, graphics, duration, s):
             f, kind = custom[0] or None, custom[1]
             item = {"custom": True, "missing_custom": not custom[0], "level_db": custom[2]}
         else:
-            kind = SFX_KIND[ev]
-            f = find_sfx_file(kind)
+            kind = by_event[ev]
+            recipes = ((style or {}).get("aspects", {}).get("sound", {}) or {}).get("recipes", {})
+            if kind in recipes:              # the style's own palette, varied on repeats
+                from .sfx import pack_sound
+                pid, ver = style["aspect_packs"]["sound"]
+                n = used.get(kind, 0)
+                used[kind] = n + 1
+                f = pack_sound(pid, ver, kind, recipes[kind], n, recipes[kind].get("variants"))
+            else:
+                f = find_sfx_file(kind)
             item = {}
         out.append({"id": f"s{len(out) + 1}", "at": round(t, 3), "kind": kind, "event": ev,
                     "for": ref, "gain_db": s.get("gain_db", -18), "file": f,
@@ -689,6 +750,16 @@ def apply_overrides(edit, ov):
                  reason=g.get("reason", "requested in review"))
         g.setdefault("style", {})
         edit["graphics"].append(g)
+    # A requested carousel owns the frame while it spins: the plan's own zooms step
+    # aside (a moving camera fights the orbit); zooms the customer asked for stay.
+    for c in (x for x in edit["graphics"] if x.get("type") == "carousel"):
+        edit["zooms"] = [z for z in edit["zooms"] if z.get("source") == "review"
+                         or not (z["start"] < c["end"] and z["end"] > c["start"])]
+        # a planned graphic still showing when the carousel comes in hands over to it
+        for x in edit["graphics"]:
+            if x is not c and x.get("source") != "review" and x.get("role") != "headline" \
+                    and x["start"] < c["start"] < x["end"]:
+                x["end"] = round(max(x["start"] + 0.5, c["start"]), 3)
     for n, z in enumerate(add.get("zooms", []), 1):
         z = dict(z)
         z.update(id=f"rz{n}", source="review", reason=z.get("reason", "requested in review"))

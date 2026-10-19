@@ -1,0 +1,56 @@
+{
+  "id": "classic",
+  "version": "1.0.0",
+  "name": "Classic",
+  "description": "The editor's original look, kept exactly so reels made before the creative redesign never change. New styles are separate packs.",
+  "legacy": true,
+  "aspects": {
+    "typography": {
+      "card_text_px": {"hook": 74, "cta": 68, "lower_third": 44, "default": 58},
+      "weight": 700
+    },
+    "captions": {
+      "outline_default": {"enabled": true, "color": "#000000", "thickness": "thick", "opacity": 0.82}
+    },
+    "components": {
+      "by_intent": {
+        "hook": "classic.card", "headline_bar": "classic.bar", "key_phrase": "classic.card",
+        "stat": "classic.card", "list": "classic.list", "question_list": "classic.sticky",
+        "cta": "classic.card", "lower_third": "classic.card", "reaction": "classic.emoji",
+        "pointer": "classic.arrow", "image": "classic.image", "logo": "classic.logo",
+        "progress": "classic.progress", "full_overlay": "classic.overlay",
+        "social_proof": "classic.profile"
+      }
+    },
+    "motion": {
+      "entrance_by_aesthetic": {"soft_luxe": "fade_scale", "clean_minimal": "fade",
+                                "bold_energetic": "pop", "playful": "bounce",
+                                "editorial": "slide", "techy": "slide"},
+      "entrance_default": "fade",
+      "exit": "fade"
+    },
+    "shape": {
+      "tokens_by_aesthetic": {
+        "clean_minimal": {"corner_radius": 18, "shadow": "soft", "stroke": 0, "card_opacity": 0.95},
+        "soft_luxe": {"corner_radius": 28, "shadow": "soft", "stroke": 0, "card_opacity": 0.9},
+        "bold_energetic": {"corner_radius": 8, "shadow": "hard", "stroke": 6, "card_opacity": 1.0},
+        "playful": {"corner_radius": 32, "shadow": "hard", "stroke": 4, "card_opacity": 1.0},
+        "editorial": {"corner_radius": 0, "shadow": "none", "stroke": 2, "card_opacity": 1.0},
+        "techy": {"corner_radius": 12, "shadow": "glow", "stroke": 2, "card_opacity": 0.85}
+      }
+    },
+    "sound": {
+      "by_event": {"zoom_punch": "whoosh", "graphic_in": "pop", "emoji": "pop", "cta": "ding",
+                   "headline": "pop", "tick": "click"}
+    },
+    "decorations": {
+      "caption_outline": true,
+      "caption_glow": true,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": true,
+      "graphic_border": true,
+      "emoji_shadow": true
+    }
+  }
+}

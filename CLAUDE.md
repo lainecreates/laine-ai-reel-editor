@@ -26,12 +26,14 @@ Dependencies: `DEPENDENCIES.md`. Customer guide: `docs/CUSTOMER-GUIDE.md`.
 
 - Python standard library only in `scripts/` (no pip dependencies).
 - **Cutting:**
-  - Never cut where `silencedetect` didn't measure silence. Whisper times are not trusted for cut points.
-  - Cleanup cuts also start and end inside measured gaps (≥ 30 ms). If there is no clean gap, the words stay in.
+  - Pause cuts only where `silencedetect` measured silence. Whisper times are not trusted for cut points.
+  - Cleanup cuts start and end inside measured gaps (≥ 30 ms). Where the speaker runs straight on, an end may land on a measured quiet point between the words (≥ 12 dB below the speech when the customer asked, ≥ 15 dB for automatic removals). Every such join is re-checked by re-transcription and put back automatically if it fails.
+  - If a requested removal can't be made cleanly, say why. Never ignore it silently.
   - Cleanup must never change meaning or leave an incomplete sentence. When unsure, leave it in.
 - **Drawing:**
   - No `drawtext` / `subtitles` / `ass` filters. Text and graphics are drawn by headless Chrome (`tools/render_overlay.mjs`, with its own temporary profile) and composited with `overlay`.
-  - Never place captions or graphics over the face (`layout.py`). Check frames before showing.
+  - Never place captions or graphics over the face itself (eyes to chin; `layout.py`). Hair or the top of the head may be overlapped when text stays readable. Placement is judged per video, not fixed slots; the customer's position or design wins. Check frames before showing.
+  - Effects a customer describes that the editor doesn't have are built for that reel only (`workspace/<reel>/custom/*.js`, see the skill). Never change the editor's own files for one reel.
 - **Caption sync is measured, not guessed:** `python3 tests/sync_bench.py`. Any change to transcription or alignment must keep its median within ±0.04 s.
 - **Reviews and versions:**
   - Reviews write per-reel files only. Never change `brand/` from a review.

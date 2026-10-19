@@ -48,6 +48,18 @@ def output_to_source(t, keep):
     return round(keep[-1][1], 3) if keep else t
 
 
+CAROUSEL_KEYS = ("place", "size", "speed", "direction", "motion")
+
+
+def _added_item(ov, gid):
+    """rg3 = the 3rd graphic requested in review (edit.overrides.json add.graphics)."""
+    if not str(gid).startswith("rg") or not str(gid)[2:].isdigit():
+        return None
+    items = (ov.get("add") or {}).get("graphics") or []
+    i = int(str(gid)[2:]) - 1
+    return (i, items[i]) if 0 <= i < len(items) else None
+
+
 # -- data for the page -------------------------------------------------------
 
 def reel_data(reel):
@@ -109,6 +121,7 @@ def reel_data(reel):
         "captions": edit.get("captions", {}).get("items", []),
         "caption_style": edit.get("captions", {}).get("style", {}),
         "graphics": edit.get("graphics", []), "zooms": edit.get("zooms", []),
+        "creative": edit.get("creative") or {"used": False},
         "sfx": edit.get("sfx", []),
         "headline": {"id": head["id"] if head else None, "text": head.get("text") if head else None,
                      "style": brand.get("headline", {}).get("style", "none"),
@@ -298,6 +311,8 @@ def apply_feedback(reel, path=None):
             fb["headline"] = {"text": pick, "chosen_for_me": True}
     if (fb.get("headline") or {}).get("text"):
         ov["headline"] = {"text": fb["headline"]["text"].strip()}
+        from . import creative
+        creative.set_headline(reel, ov["headline"]["text"])
         # a headline set by id earlier would win otherwise
         head = next((g for g in gfx.values() if g.get("role") == "headline"), None)
         if head and head["id"] in ov.get("set", {}):
@@ -305,10 +320,39 @@ def apply_feedback(reel, path=None):
         applied.append(f"headline: \"{ov['headline']['text']}\""
                        + (" (chosen for you)" if fb["headline"].get("chosen_for_me") else ""))
         changed = True
+    drop_added = set()
     for gid, change in (fb.get("graphics") or {}).items():
         g = gfx.get(gid)
         if not g:
             skipped.append(f"{gid}: graphic not found")
+            continue
+        added = _added_item(ov, gid)
+        if added is not None:
+            # something the customer asked for earlier (an image, a carousel, ...):
+            # change or remove the request itself
+            i, item = added
+            label = g["type"].replace("_", " ")
+            if change.get("remove"):
+                drop_added.add(i)
+                applied.append(f"remove {label} {gid}")
+            elif change.get("reset_style"):
+                item.pop("style", None)
+                applied.append(f"{label} {gid}: back to your brand style")
+            else:
+                for key in ("text", "emoji") + CAROUSEL_KEYS:
+                    if change.get(key) not in (None, ""):
+                        item[key] = change[key]
+                for key in ("start", "end"):
+                    if change.get(key) not in (None, ""):
+                        item[key] = round(float(change[key]), 3)
+                if change.get("start") not in (None, ""):
+                    item["src_start"] = output_to_source(item["start"], keep)
+                for key, skey in (("background", "custom_background"), ("color", "custom_text"),
+                                  ("font", "custom_font"), ("animation", "animation_in")):
+                    if change.get(key):
+                        item.setdefault("style", {})[skey] = change[key]
+                applied.append(f"edit {label} {gid}: " + ", ".join(k for k in change if change[k] not in (None, "", False)))
+            changed = True
             continue
         match = {"type": g["type"], "start": g["start"]}
         if change.get("reset_style"):
@@ -320,6 +364,19 @@ def apply_feedback(reel, path=None):
             applied.append(f"{g['type'].replace('_', ' ')} {gid}: back to your brand style")
             changed = True
             continue
+        if change.get("design"):
+            # "Try another design": only this graphic changes (pinned in designs.json)
+            from . import designs
+            from .brand import effective
+            r = designs.another(reel, edit, gid, effective(reel.root) or {}, change["design"])
+            if r:
+                applied.append(f"{g['type'].replace('_', ' ')} {gid}: design \"{r[0]}\" -> \"{r[1]}\"")
+                changed = True
+            else:
+                skipped.append(f"{gid}: no other design for this graphic in this style")
+            change = {k: v for k, v in change.items() if k != "design"}
+            if not change:
+                continue
         if change.get("remove"):
             ov.setdefault("remove_match", {})[gid] = match
             applied.append(f"remove {g['type'].replace('_', ' ')} {gid}")
@@ -352,6 +409,8 @@ def apply_feedback(reel, path=None):
         applied.append(f"edit {g['type'].replace('_', ' ')} {gid}: "
                        + ", ".join(k for k in change if change[k] not in (None, "", False)))
         changed = True
+    if drop_added:
+        ov["add"]["graphics"] = [x for i, x in enumerate(ov["add"]["graphics"]) if i not in drop_added]
     add = fb.get("add") or {}
     if any(add.get(k) for k in ("graphics", "zooms", "sfx")):
         ovadd = ov.setdefault("add", {})
@@ -462,13 +521,19 @@ def suggest_headlines(reel, count=3):
     """Fallback suggestions from the opening line, if Claude hasn't written
     review/suggestions.json. Claude's suggestions are better; this keeps the
     page useful without them."""
+    from . import creative
+    hook = creative.hook_text(reel)          # the plan's hook leads; no duplicates
     words = _opt(reel, "transcript.cut.json", {"words": []})["words"]
     first = []
     for w in words:
         first.append(w["text"].strip(",.?!\"“”"))
         if re.search(r"[.?!]$", w["text"]) or len(first) >= 8:
             break
-    return [" ".join(first[:n]) for n in (4, 6, 8)][:count] if first else []
+    out = [hook] if hook else []
+    for s in ([" ".join(first[:n]) for n in (4, 6, 8)] if first else []):
+        if s and s.lower() not in {x.lower() for x in out}:
+            out.append(s)
+    return out[:count]
 
 
 

@@ -25,7 +25,7 @@ it and installs what's missing (it asks first). To check without changing anythi
 | 4 | **FFmpeg** (with `ffprobe`) | 9.0 | Cutting, silence detection, audio, zooms, final MP4 | `install.sh` → `brew install ffmpeg` | ~150 MB |
 | 5 | **whisper.cpp** (`whisper-cli`) | 1.9 | Speech to text with word timings | `install.sh` → `brew install whisper-cpp` | ~10 MB |
 | 6 | **Speech model** `ggml-small.en.bin` | – | The model whisper.cpp uses | `install.sh` downloads it into `models/` (SHA-256 checked) | 465 MB |
-| 7 | **Node.js 18+** | 26 | Drives Chrome to draw captions and graphics (no npm packages) | `install.sh` → `brew install node` | ~100 MB |
+| 7 | **Node.js 22+** | 26 | Drives Chrome to draw captions and graphics (no npm packages) | `install.sh` → `brew install node` | ~100 MB |
 | 8 | **Google Chrome** (or Chromium) | 2026 stable | Draws captions, headline and graphics in a hidden window with its own temporary profile | Existing Chrome is reused; otherwise `install.sh` → `brew install --cask google-chrome` | ~600 MB |
 
 ## Built into macOS (nothing to install)

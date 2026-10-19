@@ -4,10 +4,16 @@ Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
 
 1. WHO MAY USE IT
 
-   A "Licensed User" is a person who bought the Laine AI Reel Editor guide
-   from Laine Levette or an authorized seller. The source code is publicly
-   visible on GitHub so it is easy to install; being able to download it
-   does not by itself grant a license.
+   A "Licensed User" is either:
+
+   a. a "Customer": a person who bought the Laine AI Reel Editor guide from
+      Laine Levette or an authorized seller; or
+   b. a "Beta Tester": a person Laine Levette personally invited, in writing
+      (for example by email or direct message), to test the software for
+      free before or during its release.
+
+   The source code is publicly visible on GitHub so it is easy to install;
+   being able to download it does not by itself grant a license.
 
 2. WHAT YOU MAY DO
 
@@ -20,6 +26,9 @@ Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
       version on your own computers; and
    e. make backup copies.
 
+   Beta Testers have these rights free of charge, for as long as the beta
+   runs (see section 4).
+
 3. WHAT YOU MAY NOT DO
 
    You may not resell, redistribute, sublicense or give away the software,
@@ -30,13 +39,43 @@ Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
 
    Keep this license and the copyright notice with every copy you make.
 
-4. YOUR CONTENT STAYS YOURS
+4. BETA TESTING
+
+   If you are a Beta Tester:
+
+   a. your invitation is personal: please don't pass it, or the software,
+      on to anyone else;
+   b. the beta version may change, contain mistakes or stop working, and
+      features may be added, changed or removed;
+   c. feedback you choose to send may be used to improve the software, with
+      no obligation either way; and
+   d. Laine Levette may end the beta at any time by telling you in writing.
+      When it ends you may keep the videos you made, and either keep using
+      the version you have under the terms you were given when invited, or
+      become a Customer, as Laine Levette tells you at that time.
+
+5. YOUR CONTENT STAYS YOURS
 
    Videos, brand settings, fonts, sounds, images and other files you create
    or upload stay yours. Laine Levette gets no rights to them. The software
    runs on your computer and does not send your videos to Laine Levette.
 
-5. THIRD-PARTY SOFTWARE
+6. INCLUDED FONTS (SEPARATE OPEN-SOURCE LICENSES)
+
+   The folder assets/fonts/included contains 24 typefaces from Google Fonts
+   by their own designers. They are NOT covered by this license and are not
+   owned by Laine Levette. Each is distributed under its own open-source
+   license, included next to its font files:
+
+   - 23 families under the SIL Open Font License, Version 1.1 (OFL.txt);
+   - Permanent Marker under the Apache License, Version 2.0 (LICENSE.txt).
+
+   You may use, copy, modify and redistribute those fonts as their licenses
+   allow (the restrictions in section 3 do not apply to them). Their license
+   files must stay with them. assets/fonts/included/README.md lists every
+   family and its license.
+
+7. THIRD-PARTY SOFTWARE
 
    The software works with free tools that you install from their official
    sources, including FFmpeg, whisper.cpp and its speech model, Node.js,
@@ -45,7 +84,7 @@ Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
    to your use of it. Claude and Claude Code are provided by Anthropic under
    Anthropic's terms; you need your own Claude plan.
 
-6. NO WARRANTY
+8. NO WARRANTY
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
@@ -53,21 +92,21 @@ Copyright (c) 2026 Laine Levette. All rights reserved except as granted below.
    software never changes them, but you are responsible for your own
    backups.
 
-7. LIMITATION OF LIABILITY
+9. LIMITATION OF LIABILITY
 
    TO THE EXTENT ALLOWED BY LAW, LAINE LEVETTE IS NOT LIABLE FOR ANY
    INDIRECT, INCIDENTAL, SPECIAL OR CONSEQUENTIAL DAMAGES, OR FOR LOST DATA,
    CONTENT, PROFITS OR BUSINESS, ARISING FROM THE USE OF THE SOFTWARE. LAINE
    LEVETTE'S TOTAL LIABILITY IS LIMITED TO THE AMOUNT YOU PAID FOR THE
-   GUIDE.
+   GUIDE (ZERO FOR BETA TESTERS).
 
-8. ENDING THE LICENSE
+10. ENDING THE LICENSE
 
    This license ends automatically if you break it. When it ends, stop
-   using the software and delete your copies. Sections 4, 6 and 7 continue
-   to apply.
+   using the software and delete your copies. Sections 5, 6, 8 and 9
+   continue to apply.
 
-9. GOVERNING LAW
+11. GOVERNING LAW
 
    This license is governed by the laws of the State of Texas, United
    States.

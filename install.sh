@@ -113,7 +113,19 @@ FORMULAS=()
 if have ffmpeg && have ffprobe; then ok "FFmpeg"; else miss "FFmpeg (video and audio) - about 150 MB"; FORMULAS+=(ffmpeg); fi
 if have whisper-cli; then ok "whisper.cpp"; else miss "whisper.cpp (speech to text) - about 10 MB"; FORMULAS+=(whisper-cpp); fi
 NODE_MAJOR=""; have node && NODE_MAJOR="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
-if [ -n "$NODE_MAJOR" ] && [ "$NODE_MAJOR" -ge 18 ]; then ok "Node.js v$NODE_MAJOR"; else miss "Node.js 18 or newer (draws captions) - about 100 MB"; FORMULAS+=(node); fi
+# Node 22+ (the editor uses Node's built-in WebSocket). An older Node elsewhere on this Mac is
+# left alone; Homebrew's Node is used when it's new enough.
+BREW_NODE_MAJOR=""; [ -x "$($BREW --prefix)/bin/node" ] && BREW_NODE_MAJOR="$("$($BREW --prefix)/bin/node" --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+pretend node && BREW_NODE_MAJOR=""
+NODE_UPGRADE=0
+if [ -n "$NODE_MAJOR" ] && [ "$NODE_MAJOR" -ge 22 ]; then ok "Node.js v$NODE_MAJOR"
+elif [ -n "$BREW_NODE_MAJOR" ] && [ "$BREW_NODE_MAJOR" -ge 22 ]; then ok "Node.js v$BREW_NODE_MAJOR (Homebrew)"
+elif [ -n "$BREW_NODE_MAJOR" ]; then miss "Node.js v$BREW_NODE_MAJOR is too old: version 22 or newer is needed (Homebrew will update it)"; NODE_UPGRADE=1
+else
+  [ -n "$NODE_MAJOR" ] && miss "Node.js v$NODE_MAJOR is too old: version 22 or newer is needed - about 100 MB" \
+                       || miss "Node.js 22 or newer (draws captions) - about 100 MB"
+  FORMULAS+=(node)
+fi
 CHROME=""
 for c in "${LAINE_CHROME:-}" "/Applications/Google Chrome.app" "$HOME/Applications/Google Chrome.app"; do
   [ -n "$c" ] && [ -e "$c" ] && CHROME="$c" && break
@@ -122,12 +134,13 @@ pretend chrome && CHROME=""
 if [ -n "$CHROME" ]; then ok "Google Chrome"; else miss "Google Chrome (draws captions, invisibly) - about 600 MB"; fi
 
 NEED_TOOLS=0
-[ ${#FORMULAS[@]} -gt 0 ] || [ -z "$CHROME" ] && NEED_TOOLS=1
+[ ${#FORMULAS[@]} -gt 0 ] || [ -z "$CHROME" ] || [ "$NODE_UPGRADE" = "1" ] && NEED_TOOLS=1
 if [ "$NEED_TOOLS" = "1" ]; then
   if [ "$MODE" = "check" ]; then
     miss "Run ./install.sh to install the missing tools."
   elif ask "Install the missing tools listed above with Homebrew now?"; then
     if [ ${#FORMULAS[@]} -gt 0 ]; then act "$BREW" install "${FORMULAS[@]}" || { fail "Homebrew couldn't install ${FORMULAS[*]}. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
+    if [ "$NODE_UPGRADE" = "1" ]; then act "$BREW" upgrade node || { fail "Homebrew couldn't update Node.js. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
     if [ -z "$CHROME" ]; then act "$BREW" install --cask google-chrome || { fail "Chrome didn't install. You can download it from google.com/chrome instead, then run ./install.sh again."; exit 1; }; fi
   else
     fail "Setup stopped: the editor needs these tools. Run ./install.sh again when you're ready."; exit 1

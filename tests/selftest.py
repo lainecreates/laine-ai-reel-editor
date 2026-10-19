@@ -175,7 +175,8 @@ def main():
     old = os.environ.get("LAINE_BRAND_DIR")
     os.environ["LAINE_BRAND_DIR"] = tmp_brand
     try:
-        script = {"colors": "navy, gold, cream", "fonts": "1", "headline": "opening hook",
+        script = {"style_pack": "minimal", "brand_files": "skip", "style_direction": "skip",
+                  "colors": "navy, gold, cream", "fonts": "1", "headline": "opening hook",
                   "caption_color": "1", "sticky_font": "body", "caption_style": "phrase lines",
                   "caption_position": "lower third", "caption_size": "medium",
                   "caption_animation": "fade", "caption_emphasis": "1", "caption_case": "1",

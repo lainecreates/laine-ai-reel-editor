@@ -17,7 +17,18 @@ const el = (tag, attrs = {}, ...kids) => {
 const fmt = t => { t = Math.max(0, t || 0); const m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const LABEL = { text_callouts: 'Headline / callout', headline_bar: 'Headline bar', sticky_notes: 'Sticky note',
   lists: 'Checklist', emoji: 'Emoji', arrows: 'Arrow', keyword_cards: 'Key-phrase card', cta_card: 'Call to action',
-  lower_third: 'Name tag', progress_bar: 'Progress bar' };
+  lower_third: 'Name tag', progress_bar: 'Progress bar', carousel: 'Image carousel', image: 'Image', calendar: 'Calendar (pages flip)', custom: 'Custom graphic' };
+// carousel options (scripts/laine_reel/carousel.py)
+const CAROUSEL = {
+  place: { auto: 'Best spot for this video', top: 'Top', upper: 'Upper third', middle: 'Middle', lower: 'Lower third',
+           left: 'Left side', right: 'Right side', top_left: 'Top-left corner', top_right: 'Top-right corner',
+           near_subject: 'Beside me' },
+  size: { small: 'Small', medium: 'Medium', large: 'Large' },
+  speed: { slow: 'Slow', normal: 'Normal', fast: 'Fast' },
+  direction: { clockwise: 'Clockwise', counterclockwise: 'Counter-clockwise' },
+  motion: { subtle: 'Subtle', noticeable: 'More noticeable' } };
+const CAROUSEL_DEFAULT = { place: 'auto', size: 'medium', speed: 'normal', direction: 'clockwise', motion: 'subtle' };
+const CAROUSEL_LABEL = { place: 'Placement', size: 'Size', speed: 'Speed', direction: 'Direction', motion: 'Motion' };
 const ANIM = { pop: 'Pop in', fade: 'Fade in', fade_scale: 'Soft grow', slide: 'Slide up', bounce: 'Bounce', none: 'Just appear' };
 
 let D = null;                       // data from the server
@@ -355,6 +366,10 @@ function renderHeadline() {
 // ---- graphics ------------------------------------------------------------
 function renderGraphics() {
   const box = $('#gfxList'); box.innerHTML = '';
+  // what the creative plan is going for, in one line, so every choice below has context
+  if (D.creative && D.creative.used && D.creative.summary)
+    box.append(el('p', { class: 'hint' }, '🎬 The plan: ' + D.creative.summary +
+      (D.creative.tone ? ` (${D.creative.tone})` : '')));
   const swatchColors = [...new Set([...(D.brand.palette || []), '#FFFFFF', '#111111'])];
   D.graphics.filter(g => g.type !== 'progress_bar').forEach(g => {
     const ch = fb.graphics[g.id] || {};
@@ -371,9 +386,21 @@ function renderGraphics() {
         el('h3', {}, (g.role === 'headline' ? 'Headline' : LABEL[g.type] || g.type), ' ',
           el('span', { class: 'small' }, g.emoji || '')),
         el('span', { class: 't', onclick: () => seek(g.start - 0.5, Math.min(4, g.end - g.start + 1)) }, '▶ ' + fmt(g.start) + '–' + fmt(g.end))),
+      g.why ? el('p', { class: 'small' }, 'Why: ' + g.why) : null,
       ch.remove ? el('p', { class: 'small' }, 'Will be removed.') : null,
       ch.reset_style ? el('p', { class: 'small' }, 'Will go back to your brand style.') : null,
       custom.length && !ch.reset_style ? el('p', { class: 'small' }, 'Has its own ' + custom.join(', ') + ' (overrides your brand settings)') : null);
+    if (!ch.remove && (g.variants || []).length > 1) {
+      // "Try another design": cycles this graphic only through the style's other designs
+      const ids = g.variants.map(v => v.id), cur = ids.indexOf(ch.design || g.variant);
+      const nxt = ids[(cur + 1) % ids.length];
+      card.append(el('div', { class: 'field' }, el('span', {}, 'Design'),
+        el('span', { class: 'small' }, ch.design
+          ? `Will change to: ${g.variants[cur].name} (${cur + 1} of ${ids.length})`
+          : `${g.variant_name} (${cur + 1} of ${ids.length})`),
+        el('button', { class: 'ghost', title: 'Only this graphic changes; the rest of your reel keeps its look',
+          onclick: () => set({ design: nxt === g.variant ? undefined : nxt }) }, '✨ Try another design')));
+    }
     if (!ch.remove) {
       if (g.type === 'emoji') {
         card.append(el('div', { class: 'field' }, el('span', {}, 'Emoji'),
@@ -384,12 +411,24 @@ function renderGraphics() {
             const lines = e.target.value.split('\n').map(x => x.trim()).filter(Boolean);
             set({ items: JSON.stringify(lines) === JSON.stringify(g.items.map(i => i.text)) ? undefined : lines }); } },
             (ch.items || g.items.map(i => i.text)).join('\n'))));
+      } else if (g.type === 'custom') {
+        card.append(el('p', { class: 'small' }, g.label || 'Made for this reel'));
+      } else if (g.type === 'calendar') {
+        card.append(el('p', { class: 'small' }, `${(g.flips || []).length} page flips, on the words you say`));
+      } else if (g.type === 'carousel') {
+        card.append(el('p', { class: 'small' }, `${(g.assets || []).length} images from your library, orbiting`));
+        Object.entries(CAROUSEL).forEach(([key, opts]) => {
+          const planned = g[key] ?? CAROUSEL_DEFAULT[key], cur = ch[key] ?? planned;
+          card.append(el('div', { class: 'field' }, el('span', {}, CAROUSEL_LABEL[key]),
+            el('select', { onchange: e => set({ [key]: e.target.value === planned ? undefined : e.target.value }) },
+              Object.entries(opts).map(([v, l]) => el('option', { value: v, selected: cur === v }, l)))));
+        });
       } else if (g.type !== 'arrows') {
         card.append(el('div', { class: 'field' }, el('span', {}, 'Words'),
           el('input', { type: 'text', value: ch.text ?? g.text ?? '', onchange: e => set({ text: e.target.value === g.text ? undefined : e.target.value }) }),
           g.role === 'headline' ? el('span', { class: 'small' }, 'or use the Headline tab') : null));
       }
-      if (g.type !== 'emoji' && g.type !== 'arrows') {
+      if (!['emoji', 'arrows', 'carousel', 'calendar', 'custom'].includes(g.type)) {
         card.append(el('div', { class: 'field' }, el('span', {}, 'Background'), swatches('background'),
           el('button', { class: 'ghost' + (ch.background === 'none' ? ' on' : ''), onclick: () => set({ background: ch.background === 'none' ? undefined : 'none' }) }, 'No background')));
         card.append(el('div', { class: 'field' }, el('span', {}, 'Text colour'), swatches('color')));
@@ -431,7 +470,7 @@ function renderGraphics() {
       Object.keys(ch).length ? el('button', { class: 'ghost', onclick: () => { delete fb.graphics[g.id]; changed(); } }, 'Undo changes') : null));
     box.append(card);
   });
-  if (!box.children.length) box.append(el('p', { class: 'hint' }, 'No graphics in this reel yet. Use the Add tab.'));
+  if (!box.querySelector('.card')) box.append(el('p', { class: 'hint' }, 'No graphics in this reel yet. Use the Add tab.'));
 }
 
 // ---- add -----------------------------------------------------------------
@@ -631,6 +670,44 @@ function renderSnapshotNote() {
       toast('Done. Tell Claude “apply my review” to see it in a new version.', 8000); poll();
     } }, 'Use my current saved defaults for this reel') : null);
 }
+function outlineField() {
+  const o = Object.assign({}, BS.outline_default, cur('caption_outline') || {});
+  const set = patch => setB('caption_outline', Object.assign({}, o, patch));
+  const hex = o.color, a = o.opacity;
+  const rgba = `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
+  const cc = BS.caption_colors || {};
+  const stroke = o.enabled ? `${BS.outline_widths[o.thickness]}em ${rgba}` : '0';
+  const sample = el('span', { class: 'outline-sample', style: `-webkit-text-stroke:${stroke};paint-order:stroke fill;color:${cc.caption_text || '#fff'}` },
+    'your ', el('span', { style: `color:${cc.caption_keyword || cc.accent || '#fff'};-webkit-text-stroke:${stroke};paint-order:stroke fill` }, 'captions'));
+  return field('Outline', 'caption_outline', el('div', { class: 'row' },
+    el('label', { class: 'small' }, el('input', { type: 'checkbox', checked: o.enabled, onchange: e => set({ enabled: e.target.checked }) }), ' On'),
+    o.enabled ? el('input', { type: 'color', value: o.color, title: 'Outline colour', onchange: e => set({ color: e.target.value.toUpperCase() }) }) : null,
+    o.enabled ? el('select', { onchange: e => set({ thickness: e.target.value }) },
+      ['thin', 'medium', 'thick'].map(v => el('option', { value: v, selected: o.thickness === v }, v[0].toUpperCase() + v.slice(1)))) : null,
+    o.enabled ? el('label', { class: 'small' }, 'opacity ', el('input', { type: 'range', min: 10, max: 100, value: Math.round(o.opacity * 100),
+      onchange: e => set({ opacity: +e.target.value / 100 }) }), ` ${Math.round(o.opacity * 100)}%`) : null,
+    sample));
+}
+function referenceSection() {
+  const rp = Object.assign({ use: [], avoid: [], notes: '' }, cur('reference_prefs') || {});
+  const set = patch => setB('reference_prefs', Object.assign({}, rp, patch));
+  const label = { captions: 'Captions', typography: 'Lettering', animation: 'Transitions / motion', graphics: 'Graphics',
+                  zooms: 'Zooms', pacing: 'Pacing', colour: 'Colour mood' };
+  return el('div', { class: 'bsec' }, el('h3', {}, 'Your reference reel'),
+    el('p', { class: 'small' }, 'Inspiration only: Claude learns the feel of the parts you like. Their words, logos and artwork are never reused, and your own settings always come first.'),
+    el('ul', { class: 'small' }, Object.entries(BS.reference.seen).map(([k, s]) => el('li', {}, `${label[k] || k}: ${s}`))),
+    field('What I like', 'reference_prefs', el('div', { class: 'swatches' }, BS.reference.categories.map(c => {
+      const state = rp.use.includes(c) ? 'use' : rp.avoid.includes(c) ? 'avoid' : '';
+      return el('select', { title: label[c] || c, onchange: e => set({
+          use: e.target.value === 'use' ? [...rp.use.filter(x => x !== c), c] : rp.use.filter(x => x !== c),
+          avoid: e.target.value === 'avoid' ? [...rp.avoid.filter(x => x !== c), c] : rp.avoid.filter(x => x !== c) }) },
+        el('option', { value: '', selected: state === '' }, `${label[c] || c}: no preference`),
+        el('option', { value: 'use', selected: state === 'use' }, `${label[c] || c}: I like it`),
+        el('option', { value: 'avoid', selected: state === 'avoid' }, `${label[c] || c}: not for me`));
+    }))),
+    field('In your words', 'reference_prefs', el('textarea', { rows: 2, placeholder: 'e.g. I love the captions and transitions, but not the graphics',
+      onchange: e => set({ notes: e.target.value }) }, rp.notes || '')));
+}
 function renderHistory() {
   const H = BS.history || [];
   return el('div', { class: 'bsec' }, el('h3', {}, 'Earlier saved defaults'),
@@ -646,8 +723,99 @@ function renderHistory() {
         } }, 'Restore') : el('span', { class: 'tag' }, 'same as now')),
       e.differs_from_now.length ? el('div', {}, el('span', { class: 'small' }, 'Compared with now:'), diffList(e.differs_from_now)) : null)));
 }
+// ---- your style (Stage 4) ----------------------------------------------------
+const HEX = /^#?[0-9a-fA-F]{6}$/;
+const hexBox = (value, onset, title) => el('input', { type: 'text', class: 'hex', value: (value || '').toUpperCase(),
+  placeholder: '#FF3E8E', title, maxlength: 7, onchange: e => {
+    const v = e.target.value.trim(); if (!HEX.test(v)) { toast('Use a HEX code like #FF3E8E'); e.target.value = value || ''; return; }
+    onset('#' + v.replace('#', '').toUpperCase()); } });
+function curStyle() {
+  const s = Object.assign({ pack: BS.current_style.pack, mix: [], direction: BS.current_style.direction || '',
+                            decorations: {}, keep: BS.current_style.keep || [] }, cur('style') || {});
+  s.mix = s.mix || []; s.decorations = s.decorations || {}; s.keep = s.keep || [];
+  return s;
+}
+const setStyle = patch => setB('style', Object.assign(curStyle(), patch));
+function styleSection() {
+  const st = curStyle(), cards = BS.styles.filter(s => !s.legacy || s.id === st.pack);
+  const pick = el('div', { class: 'stylecards' }, cards.map(s => el('button', {
+      class: 'stylecard' + (st.pack === s.id ? ' on' : ''), type: 'button',
+      onclick: () => setStyle({ pack: s.id, decorations: {} }) },
+    el('b', {}, s.legacy ? `${s.name} (your current look)` : s.name), el('span', {}, s.description))));
+  const pack = BS.styles.find(s => s.id === st.pack) || {};
+  const deco = Object.assign({}, pack.decorations || {}, st.decorations);
+  const rules = cur('creative_rules') || BS.current_style.rules || { flags: [], notes: '' };
+  const blocked = new Set(rules.flags || []);
+  const keepBox = (k, label) => el('label', { class: 'small' }, el('input', { type: 'checkbox', checked: st.keep.includes(k),
+    onchange: e => setStyle({ keep: e.target.checked ? [...st.keep, k] : st.keep.filter(x => x !== k) }) }), ' ' + label);
+  const mixRow = el('div', { class: 'row' }, el('span', { class: 'small' }, 'Borrow'),
+    el('select', { id: 'mixAspect' }, BS.aspects.map(a => el('option', { value: a }, { captions: 'captions', motion: 'motion',
+      sound: 'sound effects', components: 'graphics' }[a]))),
+    el('span', { class: 'small' }, 'from'),
+    el('select', { id: 'mixPack' }, BS.styles.filter(s => !s.legacy && s.id !== st.pack).map(s => el('option', { value: s.id }, s.name))),
+    el('button', { class: 'ghost', type: 'button', onclick: () => {
+      const asp = $('#mixAspect').value, pk = $('#mixPack').value;
+      setStyle({ mix: [...st.mix.filter(m => !m.aspects.includes(asp)), { pack: pk, aspects: [asp] }] }); } }, 'Add'));
+  return el('div', { class: 'bsec' }, el('h3', {}, 'Your style'),
+    el('p', { class: 'small' }, 'A starting point, not a template. Your colours, fonts and own words below always come first.'),
+    pick,
+    st.pack !== 'classic' ? el('div', { class: 'row' }, el('span', { class: 'small' }, 'Keep my own:'),
+      keepBox('caption_style', 'caption style'), keepBox('caption_animation', 'caption animation'),
+      keepBox('caption_emphasis', 'key-word look'), keepBox('zooms', 'zooms')) : null,
+    st.pack !== 'classic' ? mixRow : null,
+    st.mix.length ? el('div', { class: 'small' }, 'Borrowing: ', st.mix.map(m => el('span', { class: 'tag' },
+      `${m.aspects.join(', ')} from ${m.pack} `, el('a', { href: '#', onclick: ev => { ev.preventDefault();
+        setStyle({ mix: st.mix.filter(x => x !== m) }); } }, '×')))) : null,
+    field('In your own words', 'style', el('textarea', { rows: 3, id: 'styleWords',
+      placeholder: 'e.g. hot pink headlines, clean captions, no outlines or glows',
+      onchange: e => setStyle({ direction: e.target.value }) }, st.direction || '')),
+    el('p', { class: 'small' }, 'Claude reads this for every reel and turns it into exact settings, which you can check below.'),
+    field('Always / never', 'creative_rules', el('div', { class: 'swatches' }, Object.entries(BS.rules).map(([k, label]) =>
+      el('label', { class: 'small' }, el('input', { type: 'checkbox', checked: blocked.has(k), onchange: e => {
+        const fl = new Set(rules.flags || []); e.target.checked ? fl.add(k) : fl.delete(k);
+        setB('creative_rules', { flags: [...fl], notes: rules.notes || '' }); } }), ' ' + label)))),
+    field('Decorations', 'style', el('div', { class: 'swatches' }, Object.entries(BS.decoration_labels).map(([d, label]) => {
+      const off = (d === 'caption_outline' && blocked.has('no_outlines')) || (d === 'caption_glow' && blocked.has('no_glow')) ||
+                  (['caption_shadow', 'graphic_shadow', 'emoji_shadow'].includes(d) && blocked.has('no_shadows')) ||
+                  (['graphic_box', 'graphic_border'].includes(d) && blocked.has('no_boxes'));
+      return el('label', { class: 'small' + (off ? ' dim' : '') }, el('input', { type: 'checkbox', checked: !!deco[d] && !off, disabled: off,
+        onchange: e => setStyle({ decorations: Object.assign({}, st.decorations, { [d]: e.target.checked }) }) }), ' ' + label);
+    }))),
+    el('p', { class: 'small' }, 'Nothing decorative is added unless it is ticked here. Your "Always / never" choices win.'));
+}
+// Fonts included with the editor (free to use in your videos): a preview of each, and one tap
+// to use it for headlines, captions or graphics. Nothing to download.
+function fontLibrary(fontsAns) {
+  const inc = BS.included_fonts || { categories: [], fonts: [] };
+  if (!inc.fonts.length) return null;
+  if (!document.getElementById('incFontFaces')) {
+    const st = document.createElement('style'); st.id = 'incFontFaces';
+    st.textContent = inc.fonts.map(x => `@font-face { font-family: "inc-${x.family}"; src: url("${x.url}"); font-weight: 100 900; }`).join('\n');
+    document.head.append(st);
+  }
+  const using = BS.fonts_in_use || {};
+  const assign = (role, fam) => {
+    if (role === 'graphics') { setB('graphics_font', 'font:' + fam); }
+    else { const ff = Object.assign({}, cur('font_files') || {}); ff[role] = null; setB('font_files', ff);
+           setB('fonts', Object.assign({}, cur('fonts') || fontsAns, { [role]: fam })); }
+    toast(`${fam} for your ${role === 'body' ? 'captions' : role === 'headline' ? 'headlines' : 'graphics'}.`);
+  };
+  return el('details', { class: 'fontlib' }, el('summary', {}, 'Font library (24 fonts included, ready to use)'),
+    inc.categories.map(cat => el('div', {}, el('h4', {}, cat), el('div', { class: 'fontcards' },
+      inc.fonts.filter(x => x.category === cat).map(x => el('div', { class: 'fontcard' },
+        el('div', { class: 'fsample', style: `font-family:"inc-${x.family}",sans-serif` }, 'Your next reel'),
+        el('div', { class: 'small' }, x.family,
+          [['headline', 'H'], ['body', 'C'], ['graphics', 'G']].filter(([r]) => using[r] === x.family)
+            .map(([, t]) => el('span', { class: 'tag' }, t))),
+        el('div', { class: 'row' },
+          el('button', { class: 'ghost', onclick: () => assign('headline', x.family) }, 'Headlines'),
+          el('button', { class: 'ghost', onclick: () => assign('body', x.family) }, 'Captions'),
+          el('button', { class: 'ghost', onclick: () => assign('graphics', x.family) }, 'Graphics'))))))),
+    el('p', { class: 'small' }, 'H / C / G = in use for headlines, captions, graphics. Your own uploaded fonts stay available in the lists above.'));
+}
 function renderBrand() {
   const f = $('#brandForm'); f.innerHTML = '';
+  f.append(styleSection());
   const def = document.querySelector('input[name=scope][value=default]');
   def.disabled = !!BS.neutral;
   if (BS.neutral) {
@@ -663,9 +831,15 @@ function renderBrand() {
   const fontsAns = cur('fonts') || {}, files = Object.assign({}, cur('font_files') || {});
   const fontSelect = role => {
     const val = files[role] ? 'lib:' + files[role] : (role === 'graphics' ? (cur('graphics_font') || 'headline') : fontsAns[role]);
+    const inc = (BS.included_fonts || {}).fonts || [];
+    const incNames = new Set(inc.map(x => x.family));
     const opts = role === 'graphics'
       ? [['headline', 'Same as headline'], ['body', 'Same as text']]
-      : [...new Set([fontsAns[role], ...PRESET_FONTS])].filter(Boolean).map(n => [n, n]);
+      : [...new Set([fontsAns[role], ...PRESET_FONTS])].filter(n => n && !incNames.has(n)).map(n => [n, n]);
+    const incGroups = ((BS.included_fonts || {}).categories || []).map(cat => el('optgroup', { label: 'Included · ' + cat },
+      inc.filter(x => x.category === cat).map(x => {
+        const v = role === 'graphics' ? 'font:' + x.family : x.family;
+        return el('option', { value: v, selected: val === v }, x.family); })));
     return el('select', { onchange: e => {
         const v = e.target.value, ff = Object.assign({}, cur('font_files') || {});
         if (v.startsWith('lib:')) { ff[role] = v.slice(4); setB('font_files', ff); if (role === 'graphics') setB('graphics_font', 'library'); }
@@ -673,6 +847,7 @@ function renderBrand() {
                if (role === 'graphics') setB('graphics_font', v); else setB('fonts', Object.assign({}, fontsAns, { [role]: v })); }
       } },
       opts.map(([v, l]) => el('option', { value: v, selected: val === v }, l)),
+      ...incGroups,
       libFonts.length ? el('optgroup', { label: 'My uploaded fonts' }, libFonts.map(x => el('option', { value: 'lib:' + x.id, selected: val === 'lib:' + x.id }, `${x.name} (${x.family})`))) : null);
   };
   const colors = (cur('colors') || []).slice();
@@ -680,18 +855,31 @@ function renderBrand() {
     field('Brand colours', 'colors', el('div', { class: 'swatches' },
       colors.map((c, i) => el('input', { type: 'color', value: c, title: i === 0 ? 'Main colour' : i === 1 ? 'Highlight colour' : '',
         onchange: e => { const n = colors.slice(); n[i] = e.target.value.toUpperCase(); setB('colors', n); } })),
+      colors.map((c, i) => hexBox(c, v => { const n = colors.slice(); n[i] = v; setB('colors', n); }, i === 0 ? 'Main colour' : 'Colour ' + (i + 1))),
       colors.length < 4 ? el('button', { class: 'ghost', onclick: () => setB('colors', [...colors, '#FFFFFF']) }, '+ colour') : null,
       colors.length > 1 ? el('button', { class: 'ghost', onclick: () => setB('colors', colors.slice(0, -1)) }, '− last') : null,
-      el('span', { class: 'small' }, '1st = main · 2nd = highlight')))));
+      el('span', { class: 'small' }, '1st = main · 2nd = highlight'))),
+    ...Object.entries(BS.color_roles).map(([role, label]) => {
+      const roles = Object.assign({}, cur('color_roles') || {}), v = roles[role];
+      const set = val => { const r = Object.assign({}, cur('color_roles') || {}); if (val) r[role] = val; else delete r[role]; setB('color_roles', r); };
+      return field(label + ' colour', 'color_roles', el('div', { class: 'row' },
+        el('label', { class: 'small' }, el('input', { type: 'checkbox', checked: !!v, onchange: e => set(e.target.checked ? (colors[0] || '#FF3E8E') : null) }), ' exact colour'),
+        v ? el('input', { type: 'color', value: v, onchange: e => set(e.target.value.toUpperCase()) }) : null,
+        v ? hexBox(v, set, label) : el('span', { class: 'small dim' }, 'from my palette')));
+    })));
   f.append(el('div', { class: 'bsec' }, el('h3', {}, 'Fonts'),
     field('Headline font', 'fonts', fontSelect('headline')),
     field('Caption / text font', 'font_files', fontSelect('body')),
     field('Graphics font', 'graphics_font', fontSelect('graphics')),
-    el('p', { class: 'small' }, 'Upload your own TTF/OTF in the 📁 Library tab; it appears here under “My uploaded fonts”.')));
+    fontLibrary(fontsAns),
+    el('div', { class: 'row' }, el('button', { class: 'ghost', type: 'button', onclick: () => {
+        $('#brandModal').classList.add('hidden'); document.querySelector('.tabs button[data-tab=library]').click();
+        toast('Choose your TTF/OTF font file here, then come back to Brand settings and pick it.', 7000); } }, '＋ Upload a font file (TTF/OTF)'),
+      el('span', { class: 'small' }, 'Uploaded fonts appear in these lists under “My uploaded fonts”.'))));
   f.append(el('div', { class: 'bsec' }, el('h3', {}, 'Captions'),
     choice('caption_style', 'Style'), choice('caption_position', 'Position'), choice('caption_size', 'Size'),
     choice('caption_animation', 'Animation'), choice('caption_emphasis', 'Key words'), choice('caption_case', 'Lettering'),
-    choice('caption_color', 'Colour')));
+    choice('caption_color', 'Colour'), outlineField()));
   f.append(el('div', { class: 'bsec' }, el('h3', {}, 'Headline'), choice('headline', 'Headline')));
   const elems = cur('graphics_elements') || [];
   f.append(el('div', { class: 'bsec' }, el('h3', {}, 'Graphics'), choice('graphics_density', 'How much'),
@@ -718,6 +906,7 @@ function renderBrand() {
       logo ? el('select', { onchange: e => setLogo({ position: e.target.value }) }, BS.logo_positions.map(p => el('option', { value: p, selected: logo.position === p }, p.replace('_', ' ')))) : null,
       logo ? el('label', { class: 'small' }, 'size ', el('input', { type: 'range', min: 80, max: 400, value: logo.size || 180, onchange: e => setLogo({ size: +e.target.value }) })) : null,
       logo ? el('label', { class: 'small' }, 'opacity ', el('input', { type: 'range', min: 20, max: 100, value: Math.round((logo.opacity || 0.9) * 100), onchange: e => setLogo({ opacity: +e.target.value / 100 }) })) : null))));
+  if (BS.reference) f.append(referenceSection());
   f.append(renderHistory());
 }
 $('#brandSave').onclick = async () => {

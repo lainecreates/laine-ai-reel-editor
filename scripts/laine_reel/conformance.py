@@ -22,13 +22,30 @@ def check(edit, page, brand):
         for k in ("style", "position", "animation", "emphasis", "case", "size_px"):
             if cap_e["style"].get(k) != cap_b.get(k):
                 problems.append(f"caption {k}: profile '{cap_b.get(k)}', plan '{cap_e['style'].get(k)}'")
+    from . import overlay, styles
+    st = styles.resolve(brand)
+    want_o = overlay._outline(brand, st)
+    got_o = page.get("captionOutline") or {}
+    want_d = styles.decorations_on(st)
+    if page.get("decorations") is not None and page["decorations"] != want_d:
+        bad = [d for d in want_d if page["decorations"].get(d) != want_d[d]]
+        problems.append("decorations differ from the style and rules: " + ", ".join(bad))
+    for g in edit.get("graphics", []):
+        if styles.intent_for(g["type"]) in st["blocked_intents"] and g.get("role") != "logo":
+            problems.append(f"{g['id']} ({g['type']}) breaks a creative rule")
+    if st["sound_off"] and edit.get("sfx"):
+        problems.append("sound effects present but the creative rules say none")
+    for k in ("enabled", "color", "width_em", "opacity"):
+        if got_o.get(k) != want_o.get(k):
+            problems.append(f"caption outline {k}: profile {want_o.get(k)}, render {got_o.get(k)}")
     colors = brand.get("colors", {})
     pc = page["colors"]
     for page_key, brand_key in (("primary", "primary"), ("accent", "accent"),
                                 ("captionText", "caption_text"),
-                                ("captionKeyword", "caption_keyword")):
-        if pc.get(page_key) != colors.get(brand_key):
-            problems.append(f"colour {brand_key}: profile {colors.get(brand_key)}, "
+                                ("captionKeyword", "caption_keyword"), ("headline", "headline")):
+        want = colors.get(brand_key) or (colors.get("primary") if brand_key == "headline" else None)
+        if pc.get(page_key) != want:
+            problems.append(f"colour {brand_key}: profile {want}, "
                             f"render {pc.get(page_key)}")
 
     hstyle = brand.get("headline", {}).get("style", "none")
@@ -76,6 +93,10 @@ def check_fonts(report, brand, edit=None):
              "hand": overlay.HAND.split(",")[0].strip('" '),
              "bulky": overlay.BULKY.split(",")[0].strip('" ')}
     problems = []
+    from . import styles
+    st = styles.resolve(brand)
+    pack_fonts = None if st["legacy"] else (st["aspects"]["captions"].get("treatment") or {}).get("font", "body")
+    own = {f for f in (fonts.get("headline"), fonts.get("body"), fonts.get("graphics")) if f}
     for el in report:
         role = el["role"]
         if role == "emoji":
@@ -86,6 +107,17 @@ def check_fonts(report, brand, edit=None):
                 problems.append(f"{el['id']} should use the {custom[el['id']]} font chosen in review")
             continue
         family = el["family"].split(",")[0].strip().strip('"\'')
+        if pack_fonts is not None:
+            # new styles: every element in one of the customer's own fonts, and
+            # captions in the font role the style declares
+            if role == "caption":
+                exp = fonts.get(pack_fonts) or fonts.get("body")
+                if family != exp:
+                    problems.append(f"{el['id']} (caption) is drawn in '{family}', expected '{exp}'")
+            elif family not in own:
+                problems.append(f"{el['id']} ({role}) is drawn in '{family}', not one of the brand's fonts "
+                                f"({', '.join(sorted(own))})")
+            continue
         if role == "sticky":
             expected = {"hand": overlay.HAND.split(",")[0].strip('" '),
                         "body": fonts.get("body"), "headline": fonts.get("headline")}[sticky]
@@ -106,9 +138,10 @@ def font_warnings(brand):
         if not name or fonts.get(f"{role}_file"):
             continue
         key = name.lower().replace(" ", "")
-        in_assets = fonts_dir.is_dir() and any(
+        from . import fontlib
+        in_assets = bool(fontlib.find(name)) or (fonts_dir.is_dir() and any(
             p.stem.lower().replace(" ", "").replace("-", "").startswith(key)
-            for p in fonts_dir.iterdir())
+            for p in fonts_dir.iterdir()))
         if not in_assets:
             standin = overlay.FALLBACK.get(name.lower(), overlay.SANS).split(",")[0].strip('" ')
             out.append(f"{name} ({role}) isn't installed: drawn in {standin} instead. "

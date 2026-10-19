@@ -59,3 +59,27 @@ def resolve(kind):
     if not gen.exists():
         ensure_pack()
     return str(gen) if gen.exists() else None
+
+
+# -- style-pack sound palettes ---------------------------------------------------
+# A pack's "sound" aspect names its own recipes (same form as RECIPES above) and
+# a few pitch variations, so a sound that repeats in one reel never sounds
+# identical. Generated on first use into assets/sfx/generated/packs/.
+
+DEFAULT_VARIANTS = [1.0, 1.06, 0.94]
+
+
+def pack_sound(pack_id, version, name, recipe, variant=0, variants=None):
+    """Path of one variation of a pack's sound, generated if missing."""
+    vs = variants or DEFAULT_VARIANTS
+    pitch = vs[variant % len(vs)]
+    d = GENERATED / "packs" / f"{pack_id}-{version}"
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{name}-{variant % len(vs)}.wav"
+    if not path.exists():
+        src, filters = recipe["src"], recipe.get("filters", "anull")
+        shift = "" if pitch == 1.0 else f",asetrate={round(48000 * pitch)},aresample=48000"
+        run([require("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+             "-i", src, "-af", f"{filters}{shift},alimiter=limit=0.89,"
+             "aformat=sample_rates=48000:channel_layouts=stereo", path])
+    return str(path) if path.exists() else None

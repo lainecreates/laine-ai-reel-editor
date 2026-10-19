@@ -1,0 +1,263 @@
+{
+  "id": "magazine",
+  "version": "1.0.0",
+  "name": "Magazine",
+  "description": "Editorial and curated: serif headlines, letter-spaced kicker labels, pull quotes, numbered columns and hairline rules on paper cards, left-aligned grid, wipe reveals, page-turn sounds.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "phrase_lines",
+        "animation": "wipe_right",
+        "emphasis": "underline"
+      },
+      "treatment": {
+        "font": "body",
+        "weight": 500,
+        "align": "left",
+        "line_height": 1.2,
+        "in_s": 0.3
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "magazine.hook",
+        "headline_bar": "magazine.headline_bar",
+        "key_phrase": "magazine.key_phrase",
+        "stat": "magazine.stat",
+        "list": "magazine.list",
+        "question_list": "magazine.question_list",
+        "cta": "magazine.cta",
+        "lower_third": "magazine.lower_third",
+        "reaction": "magazine.reaction",
+        "pointer": "magazine.pointer",
+        "quote": "magazine.quote",
+        "contrast": "magazine.contrast",
+        "tip": "magazine.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "kicker",
+            "name": "Kicker card"
+          },
+          {
+            "id": "masthead",
+            "name": "Masthead"
+          },
+          {
+            "id": "cover",
+            "name": "Cover line with a big number"
+          }
+        ],
+        "list": [
+          {
+            "id": "column",
+            "name": "Numbered column"
+          },
+          {
+            "id": "contents",
+            "name": "Contents page with dotted leaders"
+          }
+        ],
+        "stat": [
+          {
+            "id": "numeral",
+            "name": "Big numeral"
+          },
+          {
+            "id": "bar",
+            "name": "Bar chart",
+            "fits": {
+              "needs_percent": true
+            }
+          }
+        ],
+        "cta": [
+          {
+            "id": "footer",
+            "name": "Footer line"
+          },
+          {
+            "id": "boxed",
+            "name": "Boxed note",
+            "fits": {
+              "needs_decoration": "graphic_border"
+            }
+          }
+        ],
+        "quote": [
+          {
+            "id": "pull",
+            "name": "Pull quote"
+          },
+          {
+            "id": "siderule",
+            "name": "Side-rule quote"
+          }
+        ],
+        "contrast": [
+          {
+            "id": "strike",
+            "name": "Not this — this"
+          }
+        ],
+        "tip": [
+          {
+            "id": "tip_card",
+            "name": "TIP card"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "mask wipes, drawn rules, page slides"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "page",
+        "graphic_in": "pen",
+        "emoji": "tick",
+        "cta": "page",
+        "headline": "page",
+        "tick": "tick"
+      },
+      "gain_offset_db": -2,
+      "recipes": {
+        "page": {
+          "src": "anoisesrc=color=pink:amplitude=0.8:duration=0.5:sample_rate=48000",
+          "filters": "highpass=f=600,bandpass=f=1800:width_type=h:w=2400,afade=t=in:st=0:d=0.06,afade=t=out:st=0.12:d=0.38,volume=7",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "pen": {
+          "src": "anoisesrc=color=white:amplitude=0.6:duration=0.2:sample_rate=48000",
+          "filters": "bandpass=f=3500:width_type=h:w=1500,afade=t=in:st=0:d=0.02,afade=t=out:st=0.06:d=0.14,volume=5",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "tick": {
+          "src": "aevalsrc='0.8*sin(2*PI*900*t)*exp(-60*t)':s=48000:d=0.08",
+          "filters": "lowpass=f=3000",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": false,
+      "graphic_border": false,
+      "emoji_shadow": false
+    },
+    "composition": {
+      "default": {
+        "align": "left",
+        "w": 860,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "h": 320
+        },
+        "stat": {
+          "w": 600,
+          "h": 330
+        },
+        "key_phrase": {
+          "h": 300
+        },
+        "cta": {
+          "w": 820,
+          "h": 150,
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 130,
+          "h": 130
+        },
+        "pointer": {
+          "w": 200,
+          "h": 200
+        },
+        "lower_third": {
+          "w": 560,
+          "h": 100,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "w": 900,
+          "h": 120,
+          "align": "center"
+        },
+        "list": {
+          "w": 900,
+          "list_head": 110,
+          "row_h": 98,
+          "chars_per_row": 30
+        },
+        "question_list": {
+          "w": 900,
+          "list_head": 110,
+          "row_h": 98,
+          "chars_per_row": 30
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "punchy",
+      "frequency": "rare",
+      "scale_min": 1.06,
+      "scale_max": 1.08,
+      "min_gap_s": 9
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#B23A48",
+        "#1C1C1C",
+        "#F5F1EA"
+      ],
+      [
+        "#0B3C5D",
+        "#D9B310",
+        "#F4F4F0"
+      ],
+      [
+        "#3D405B",
+        "#E07A5F",
+        "#F4F1DE"
+      ]
+    ],
+    "fonts": [
+      "Playfair Display / Lato",
+      "DM Serif Display / Inter"
+    ]
+  }
+}

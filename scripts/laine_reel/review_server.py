@@ -130,6 +130,13 @@ def make_handler(reel):
                 if f and f.suffix.lower() in MIME:
                     mimetypes.add_type(MIME[f.suffix.lower()], f.suffix.lower())
                 return self._file(f)
+            if p.startswith("/fonts/included/"):
+                from . import fontlib
+                f = _inside(fontlib.INCLUDED_DIR, p[len("/fonts/included/"):])
+                if f and f.suffix.lower() in MIME:
+                    mimetypes.add_type(MIME[f.suffix.lower()], f.suffix.lower())
+                    return self._file(f)
+                return self._send(404)
             if p == "/api/status":
                 return self._json(versions.get_status(reel))
             if p.startswith("/download/"):
@@ -281,6 +288,57 @@ def stop_previous():
     return None
 
 
+RULE_LABELS = {"no_outlines": "No outlines on captions", "no_glow": "No glow", "no_shadows": "No shadows",
+               "no_boxes": "No boxes or backgrounds behind graphics", "no_emojis": "No emojis",
+               "no_sound_effects": "No sound effects"}
+DECO_LABELS = {"caption_outline": "Caption outline", "caption_glow": "Caption glow",
+               "caption_shadow": "Soft shadow behind captions", "graphic_box": "Boxes / backgrounds behind graphics",
+               "graphic_shadow": "Shadows on graphics", "graphic_border": "Borders / sticker edges",
+               "emoji_shadow": "Shadow under emojis"}
+
+
+def _style_cards():
+    from . import styles
+    out = []
+    for p in styles.list_packs():
+        pk = styles.load_pack(p["id"])
+        a = pk.get("aspects", {})
+        out.append({"id": p["id"], "name": p["name"], "description": p["description"], "legacy": p["legacy"],
+                    "decorations": a.get("decorations", {}),
+                    "recommended": a.get("captions", {}).get("recommended", {})})
+    out.sort(key=lambda s: (s["legacy"], ["luxe", "playful", "magazine", "minimal", "bold", "energetic"].index(s["id"])
+                            if s["id"] in ("luxe", "playful", "magazine", "minimal", "bold", "energetic") else 9))
+    return out
+
+
+def _current_style(profile):
+    from . import styles
+    st = profile.get("style") or {}
+    r = styles.resolve(profile)
+    return {"pack": r["pack"], "mix": r["mix"], "direction": r["direction"], "keep": (st.get("keep") or []),
+            "decorations": {d: v["on"] for d, v in r["decorations"].items()},
+            "decoration_sources": {d: v["source"] for d, v in r["decorations"].items()},
+            "rules": r["rules"]}
+
+
+def _reference_summary():
+    """The customer's reference reel, if any: what was measured (in words)."""
+    from . import reference_style
+    v = reference_style.load()
+    if not v or not v.get("available"):
+        return None
+    c, g, z, col = v.get("captions") or {}, v.get("graphics") or {}, v.get("zooms") or {}, v.get("colour") or {}
+    seen = {
+        "captions": (f"{c.get('words_at_a_time')} word(s) at a time, {str(c.get('position', '')).replace('_', ' ')}, "
+                     f"{ {'upper': 'ALL CAPS', 'lower': 'lowercase', 'as_spoken': 'normal case'}.get(c.get('case'), '')}"
+                     if c.get("present") else "no captions"),
+        "graphics": f"{g.get('per_minute')} text graphics a minute, mostly {str(g.get('typical_position') or '').replace('_', ' ')}",
+        "zooms": f"{z.get('punch_ins')} punch-ins, {z.get('slow_pushes')} slow pushes ({z.get('per_minute')}/min)",
+        "colour": col.get("mood", ""),
+    }
+    return {"seen": seen, "categories": reference_style.CATEGORIES}
+
+
 def brand_settings(reel):
     """Everything the Brand settings panel shows."""
     defaults = (config.load_brand() or {}).get("answers", {})
@@ -296,7 +354,27 @@ def brand_settings(reel):
             "neutral": not brand.is_onboarded(),
             "questions": qs, "sound_events": brand.SOUND_EVENTS,
             "logo_positions": brand.LOGO_POSITIONS,
-            "fonts_in_use": {k: eff.get("fonts", {}).get(k) for k in ("headline", "body", "graphics")}}
+            "outline_default": brand.DEFAULT_OUTLINE, "outline_widths": brand.OUTLINE_WIDTHS,
+            "styles": _style_cards(), "current_style": _current_style(eff),
+            "rules": {k: RULE_LABELS[k] for k in RULE_LABELS}, "decoration_labels": DECO_LABELS,
+            "color_roles": brand.COLOR_ROLES, "aspects": ["captions", "motion", "sound", "components"],
+            "reference": _reference_summary(),
+            "caption_colors": {k: eff.get("colors", {}).get(k) for k in ("caption_text", "caption_keyword", "accent")},
+            "fonts_in_use": {k: eff.get("fonts", {}).get(k) for k in ("headline", "body", "graphics")},
+            "included_fonts": _included_fonts()}
+
+
+def _included_fonts():
+    """The fonts that come with the editor, by category, with a file to preview each."""
+    from . import fontlib
+    out = []
+    for f in fontlib.families():
+        if not f["files"]:
+            continue
+        rel = Path(f["files"][0]).relative_to(fontlib.INCLUDED_DIR).as_posix()
+        out.append({"family": f["family"], "category": f["category"], "license": f["license"],
+                    "url": "/fonts/included/" + rel})
+    return {"categories": fontlib.CATEGORIES, "fonts": out}
 
 
 def serve(reel, port=8765, open_browser=True, ready=None):

@@ -26,12 +26,32 @@ def run(cmd, check=True):
     return proc
 
 
+NODE_MIN = 22      # captions are drawn with Node's built-in WebSocket (Node 22+)
+
+
 def find_tool(name):
-    """settings.json "tools": {"ffmpeg": "/path"} overrides PATH lookup."""
+    """settings.json "tools": {"ffmpeg": "/path"} overrides PATH lookup.
+    Node: the first one that is new enough (an older Node earlier on PATH is skipped)."""
     override = config.load_settings().get("tools", {}).get(name)
     if override:
         return override if Path(override).exists() else None
+    if name == "node":
+        seen = []
+        for c in (shutil.which("node"), "/opt/homebrew/bin/node", "/usr/local/bin/node"):
+            if c and c not in seen and Path(c).exists():
+                seen.append(c)
+                if (_version_major(c) or 0) >= NODE_MIN:
+                    return c
+        return seen[0] if seen else None
     return shutil.which(name)
+
+
+def _version_major(node):
+    try:
+        out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=10).stdout
+        return int(out.strip().lstrip("v").split(".")[0])
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
 
 
 def require(name):
@@ -166,7 +186,7 @@ def doctor():
         path = find_tool(name)
         rows.append((name, bool(path), version_of(name) if path else "missing", required))
     nm = _node_major()
-    rows.append(("node 18+", bool(nm and nm >= 18),
+    rows.append((f"node {NODE_MIN}+", bool(nm and nm >= NODE_MIN),
                  f"v{nm}" if nm else "missing - draws captions and graphics", True))
     chrome = find_chrome()
     rows.append(("Google Chrome", bool(chrome), chrome or "missing - draws captions and graphics",

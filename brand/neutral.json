@@ -1,8 +1,15 @@
 {
-  "_comment": "The clean, neutral look every reel uses until the customer finishes brand onboarding. Shipped with the editor; never pinned to a reel.",
+  "_comment": "The clean, neutral look every reel uses until the customer finishes brand onboarding. Plain: no outline, no glow; only a soft shadow so white captions stay readable. Shipped with the editor; never pinned to a reel.",
   "answers": {
-    "colors": ["#FFFFFF", "#1C1C1E", "#F2F2F2"],
-    "fonts": {"headline": "Avenir Next", "body": "Avenir Next"},
+    "colors": [
+      "#FFFFFF",
+      "#1C1C1E",
+      "#F2F2F2"
+    ],
+    "fonts": {
+      "headline": "Avenir Next",
+      "body": "Avenir Next"
+    },
     "headline": "none",
     "caption_style": "phrase_lines",
     "caption_position": "lower_third",
@@ -20,6 +27,17 @@
     "sfx": "none",
     "music": "none",
     "aesthetic": "clean_minimal",
-    "personality": "clear, friendly"
+    "personality": "clear, friendly",
+    "style": {
+      "pack": "classic",
+      "decorations": {
+        "caption_outline": false,
+        "caption_glow": false,
+        "graphic_box": false,
+        "graphic_shadow": false,
+        "graphic_border": false,
+        "emoji_shadow": false
+      }
+    }
   }
 }

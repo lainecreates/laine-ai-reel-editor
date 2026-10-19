@@ -87,6 +87,21 @@ def finish(reel, pacing, frame, focus_x, loudness, preview, check_speech=False,
     stage_render(reel, frame=frame, focus_x=focus_x, loudness=loudness, preview=preview)
     stage_remap(reel)
     result = stage_verify(reel, check_speech=check_speech, model=model, language=language)
+    failed = _failed_quiet_joins(reel, result) if check_speech and not use_edl else []
+    if failed:
+        # A quiet-point join didn't pass the speech check: put those words back and
+        # cut again, so the video never keeps a clipped word.
+        p = reel.path("cleanup.rejected.json")
+        old = read_json(p) if p.exists() else {"quiet_joins_failed": []}
+        old["quiet_joins_failed"] = sorted(set(old["quiet_joins_failed"]) | set(failed))
+        write_json(p, old)
+        log(f"verify     a quiet-point join didn't pass the speech check (word {', '.join(map(str, failed))}); "
+            "putting those words back and cutting again")
+        stage_cleanup(reel, pacing, enabled=clean)
+        stage_plan(reel, pacing)
+        stage_render(reel, frame=frame, focus_x=focus_x, loudness=loudness, preview=preview)
+        stage_remap(reel)
+        result = stage_verify(reel, check_speech=check_speech, model=model, language=language)
     write_report(reel)
     if not config.load_brand():
         log("design     neutral look: brand onboarding isn't done yet")
@@ -197,7 +212,10 @@ def stage_cleanup(reel, pacing_name, enabled=True):
     review_path = reel.path("cleanup.review.json")
     review = read_json(review_path) if review_path.exists() else None
     cands = cleanup.merge_review(cleanup.detect(words), review, words)
-    cuts, decisions = cleanup.place(cands, words, sil["gaps"], config.PACING[pacing_name])
+    rp = reel.path("cleanup.rejected.json")
+    rejected = set((read_json(rp) if rp.exists() else {}).get("quiet_joins_failed", []))
+    cuts, decisions = cleanup.place(cands, words, sil["gaps"], config.PACING[pacing_name],
+                                    dip=_dip_finder(reel), no_dip=rejected)
     manual = []
     for i in (review or {}).get("pause_cuts", []):
         cut, why = cleanup.pause_cut(words, int(i), sil["silences"] + sil["gaps"],
@@ -211,6 +229,13 @@ def stage_cleanup(reel, pacing_name, enabled=True):
     removed = sorted(cleanup.removed_indices(cands, decisions))
     write_json(out, {"enabled": True, "reviewed": review is not None, "candidates": cands,
                      "cuts": cuts, "removed_words": removed, "pause_cuts": manual})
+    # Requests that couldn't be done are said out loud, never silently dropped.
+    for c in cands:
+        if c.get("source") == "review" and not c["decision"]["applied"]:
+            log(f"cleanup    NOT REMOVED (requested): \"{c['text']}\" - {c['decision'].get('why') or c['reason']}")
+        elif c["decision"].get("quiet_join"):
+            log(f"cleanup    removed \"{c['text']}\" at a quiet point between words (no pause there); "
+                "the speech check will confirm the join")
     applied = sum(1 for c in cands if c["decision"]["applied"])
     skipped = sum(1 for c in cands if c["auto"] and not c["decision"]["applied"])
     flagged = sum(1 for c in cands if not c["auto"])
@@ -218,6 +243,37 @@ def stage_cleanup(reel, pacing_name, enabled=True):
               reviewed=review is not None, words_removed=len(removed))
     log(f"cleanup    {applied} applied ({len(removed)} words), {skipped} left in (unsafe), "
         f"{flagged} flagged{', with review' if review else ''}")
+
+
+def _dip_finder(reel):
+    """dip(t0, t1) -> (t, level_db, speech_db): the quietest 20 ms between two words
+    and how loud the speech around it is, measured on the clip's own audio."""
+    wav = reel.work / "audio16k.wav"
+    if not wav.exists():
+        return None
+    env = align.envelope(wav)
+    hop = align.HOP
+
+    def dip(t0, t1):
+        i0, i1 = max(0, int(t0 / hop)), min(len(env) - 1, int(t1 / hop))
+        if i1 - i0 < 3:
+            return None
+        pairs = [(max(env[k], env[k + 1]), k) for k in range(i0, i1 - 1)]   # 20 ms stays quiet
+        level, k = min(pairs)
+        around = sorted(env[max(0, i0 - 25):min(len(env), i1 + 25)])
+        speech = around[int(len(around) * 0.75)] if around else level
+        return (round((k + 1) * hop, 3), level, speech)
+    return dip
+
+
+def _failed_quiet_joins(reel, result):
+    """Word numbers of quiet-point joins the speech check flagged."""
+    bad = {p.get("word") for p in result.get("cleanup_join_problems") or [] if p.get("word") is not None}
+    if not bad:
+        return []
+    cl = read_json(reel.path("cleanup.json"))
+    return sorted({c["words"][0] for c in cl["candidates"]
+                   if c["decision"].get("quiet_join") and c["words"] and c["words"][0] in bad})
 
 
 def stage_plan(reel, pacing_name):
@@ -294,7 +350,7 @@ def stage_verify(reel, check_speech=False, model=None, language="en"):
         exp, joins = [], []
         for i, w in enumerate(words):
             if i in removed and (i == 0 or i - 1 not in removed):
-                joins.append(len(exp))
+                joins.append((len(exp), i))
             if i not in removed:
                 exp.extend(cleanup.tokens([w]))
         got = cleanup.tokens(again["words"])
@@ -307,7 +363,11 @@ def stage_verify(reel, check_speech=False, model=None, language="en"):
         if joins:
             # No difference may sit right at a content-cleanup join: that
             # would mean a clipped word or a leftover fragment.
-            bad = [d for d in diffs if any(abs(d["at_token"] - j) <= 2 for j in joins)]
+            bad = []
+            for d in diffs:
+                near = [w for j, w in joins if abs(d["at_token"] - j) <= 2]
+                if near:
+                    bad.append(dict(d, word=near[0]))
             detail["cleanup_join_problems"] = bad
             checks["cleanup_joins_clean"] = not bad
 
@@ -351,7 +411,30 @@ def stage_design(reel, brand=None):
     if overrides.get("add") or overrides.get("set"):
         from .review import retime_additions
         overrides = retime_additions(overrides, edl["keep"])
-    edit = planner.plan(words, edl["stats"]["output_duration"], joins, brand, overrides)
+    from . import creative
+    brief = creative.load(reel)
+    if brief is not None:
+        brief, fresh = creative.complete(brief, words)
+        brief, notes = creative.reanchor(brief, words)
+        for n in notes:
+            log(f"creative   {n}")
+        try:
+            creative.validate(brief, words, brand, edl["stats"]["output_duration"])
+        except creative.BriefError as e:
+            raise RuntimeError("The creative plan (creative.json) needs fixing:\n  - " +
+                               "\n  - ".join(e.problems))
+        if notes or fresh:
+            creative.save(reel, brief, words)
+    edit = planner.plan(words, edl["stats"]["output_duration"], joins, brand, overrides, brief=brief)
+    # one design per graphic from the style's designs: the customer's pick, the plan's,
+    # this reel's look, else what their recent reels used least (pinned in designs.json)
+    from . import designs
+    for gid, v in designs.assign(reel, edit, brand).items():
+        log(f"design     {gid}: {next(g['variant_name'] for g in edit['graphics'] if g['id'] == gid)}")
+    edit["creative"] = ({"used": True, "summary": brief.get("summary"), "tone": brief.get("tone"),
+                         "moments": len(brief.get("moments", [])),
+                         "no_graphics": brief.get("no_graphics", [])} if brief is not None
+                        else {"used": False})
     write_json(reel.path("edit.json"), edit)
     reel.path("edit-plan.md").write_text(planner.plan_markdown(edit, reel.root.name))
     reel.mark("design", captions=len(edit["captions"]["items"]), zooms=len(edit["zooms"]),
@@ -374,6 +457,12 @@ def stage_final(reel, preview=False, frame="cover", focus_x=0.5, loudness=True):
         versions.set_status(reel, "ready", "Preview rendered")
         return out, checks
     n = versions.snapshot(reel, out)
+    if all(checks.values()):
+        # remember which designs this reel used, so the next reels can vary
+        from . import designs
+        from .brand import effective
+        edit = read_json(reel.path("edit.json"))
+        designs.record(reel, edit, effective(reel.root) or {})
     versions.set_status(reel, "ready", f"Version {n} is ready", version=n)
     log(f"final      kept as version {n} (output/versions/v{n:03d})")
     return out, checks
@@ -408,7 +497,16 @@ def _stage_final(reel, preview=False, frame="cover", focus_x=0.5, loudness=True)
     log(f"faces      {len(track['samples'])} samples ({track['source']})")
 
     # 2. where does everything go?
+    _backdrop(reel, edit, brand)
+    cdir = reel.root / "custom"
+    edit["_custom_js"] = ({f.name: f.read_text() for f in sorted(cdir.glob("*.js"))}
+                          if cdir.is_dir() else {})
     lay = layout.build(edit, track)
+    for g in edit["graphics"]:
+        g.pop("_luma", None)
+        if lay["graphics"].get(g["id"], {}).get("backdrop", 0) > 0.7:
+            log(f"WARNING    {g['id']} has no box and sits on a bright part of the frame: check it reads, "
+                f"or give it \"backing\": \"box\" / another \"place\"")
     write_json(reel.path("layout.json"), lay)
     cap = lay.get("captions") or {}
     # a full-screen overlay the customer asked for covers the face on purpose
@@ -439,8 +537,15 @@ def _stage_final(reel, preview=False, frame="cover", focus_x=0.5, loudness=True)
         page = odir / "page.html"
         page.write_text(overlay.build_page(edit, lay, brand, fps))
         log("overlay    drawing captions and graphics in headless Chrome ...")
-        res = run([node, config.PROJECT_ROOT / "tools" / "render_overlay.mjs", page,
-                   odir / "frames", f"{fps:.6f}", f"{edit['duration']:.3f}"]).stdout
+        cmd = [node, config.PROJECT_ROOT / "tools" / "render_overlay.mjs", page,
+               odir / "frames", f"{fps:.6f}", f"{edit['duration']:.3f}"]
+        r = run(cmd, check=False)
+        if r.returncode == 5:      # Chrome stalled loading the page: one fresh retry
+            log("overlay    Chrome stalled while loading; retrying once")
+            r = run(cmd, check=False)
+        if r.returncode != 0:
+            raise RuntimeError(f"Drawing captions and graphics failed: {(r.stderr or '').strip()[-400:]}")
+        res = r.stdout
         log(f"overlay    {res.strip()}")
         concat = odir / "frames" / "frames.ffconcat"
         font_problems = conformance.check_fonts(read_json(odir / "frames" / "fonts.json"), brand,
@@ -487,10 +592,40 @@ def _stage_final(reel, preview=False, frame="cover", focus_x=0.5, loudness=True)
     return out, checks
 
 
+def _backdrop(reel, edit, brand):
+    """Text drawn straight on the footage (no box) has to sit where it reads: give
+    layout a small brightness map of the frame behind each such graphic. Style
+    packs only; Classic keeps its layout exactly."""
+    from . import styles
+    st = styles.resolve(brand)
+    if st["legacy"]:
+        return
+    box_on = styles.decorations_on(st).get("graphic_box")
+    for g in edit["graphics"]:
+        boxed = g.get("backing") == "box" or (box_on and g.get("backing") != "none"
+                                               and (g.get("style") or {}).get("custom_background") != "none")
+        if not g.get("component") or boxed or g["type"] in ("emoji", "arrows", "image", "full_overlay"):
+            continue
+        t = (g["start"] + g["end"]) / 2
+        import subprocess
+        r = subprocess.run([str(find_tool("ffmpeg")), "-hide_banner", "-loglevel", "error", "-ss", f"{t:.2f}",
+                            "-i", str(reel.video_out), "-frames:v", "1", "-vf",
+                            f"scale={layout.LUMA_GRID[0]}:{layout.LUMA_GRID[1]},format=gray",
+                            "-f", "rawvideo", "-"], capture_output=True)
+        if r.returncode == 0 and len(r.stdout) == layout.LUMA_GRID[0] * layout.LUMA_GRID[1]:
+            g["_luma"] = list(r.stdout)
+
+
 def _library_images(edit):
     """Image graphics point at library assets: give the renderer the file."""
-    from . import library
+    from . import carousel, library
     for g in edit["graphics"]:
+        if g["type"] == "carousel":
+            bad = carousel.problems(g)
+            if bad:
+                raise RuntimeError(f"Carousel {g['id']}: " + "; ".join(bad))
+            g["srcs"] = [library.path_of(a).as_uri() for a in g["assets"]]
+            g["ratios"] = carousel.ratios(g)
         if g["type"] == "image" and g.get("asset"):
             p = library.path_of(g["asset"])
             if not p:
@@ -553,8 +688,10 @@ def write_report(reel):
                 result = f"left in: {c['reason']}"
             else:
                 result = f"left in: {d.get('why', '')}"
-            lines.append(f"| {c['id']} | {c['type']} | {c['words'][0]}–{c['words'][1]} | "
-                         f"{c['text']} | {result} |")
+            span = f"{c['words'][0]}–{c['words'][1]}" if c.get("words") else "-"
+            if d.get("quiet_join") and d.get("applied"):
+                result += " (at a quiet point between words)"
+            lines.append(f"| {c['id']} | {c['type']} | {span} | {c['text']} | {result} |")
     if verify.get("speech_diffs"):
         lines += ["", "## Re-transcription differences", ""]
         lines += [f"- {d['op']}: expected “{d['expected']}”, heard “{d['heard']}”"

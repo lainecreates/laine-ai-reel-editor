@@ -13,14 +13,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from laine_reel import brand, planner, reference  # noqa: E402
 
 ANSWERS = [
-    ("colors", "blush pink, #C9A227 and cream"), ("fonts", "2"), ("headline", "opening hook"),
+    ("style_pack", "luxe"),
+    ("colors", "blush pink, #C9A227 and cream"), ("fonts", "2"), ("brand_files", "skip"),
+    ("headline", "opening hook"),
     ("caption_style", "karaoke"), ("caption_position", "lower third"),
     ("caption_size", "large"), ("caption_animation", "pop"), ("caption_emphasis", "1"),
     ("caption_case", "as spoken"), ("caption_color", "1"), ("pacing", "tight"), ("zoom_style", "mixed"),
     ("zoom_frequency", "moderate"), ("graphics_density", "balanced"),
     ("graphics_elements", "sticky notes, text callouts, key-phrase cards, emoji, cta card"),
-    ("sticky_font", "hand"), ("sfx", "subtle"), ("music", "soft"), ("aesthetic", "soft luxe"),
-    ("personality", "warm, confident, real"), ("handle", "@test"), ("reference_reel", "skip"),
+    ("sticky_font", "hand"), ("sfx", "subtle"), ("music", "soft"),
+    ("personality", "warm, confident, real"), ("handle", "@test"),
+    ("style_direction", "hot pink headlines, clean captions, no outlines or glows"),
+    ("reference_reel", "skip"),
 ]
 
 
@@ -97,7 +101,11 @@ class Parsing(unittest.TestCase):
 class Onboarding(TempBrand):
     def test_one_question_at_a_time_and_resume(self):
         q = brand.next_question()
-        self.assertEqual((q["id"], q["number"]), ("colors", 1))
+        self.assertEqual((q["id"], q["number"]), ("style_pack", 1))   # new customers: style first
+        brand.answer("style_pack", "magazine")
+        q = brand.next_question()
+        self.assertEqual((q["id"], q["number"]), ("colors", 2))
+        self.assertIn("HEX", q["prompt"])
         brand.answer("colors", "navy, gold")
         # a fresh call (new session) resumes where we left off
         self.assertEqual(brand.next_question()["id"], "fonts")
@@ -113,9 +121,33 @@ class Onboarding(TempBrand):
             brand.answer(q["id"], dict(ANSWERS)[q["id"]])
         self.assertEqual(len(totals), 1)
 
+    def test_new_flow_compiles_style_and_direction(self):
+        p = self.onboard()
+        self.assertEqual(p["style"]["pack"], "luxe")
+        self.assertEqual(p["aesthetic"]["preset"], "soft_luxe")
+        self.assertIn("no outlines or glows", p["style"]["direction"])
+        self.assertNotIn("aesthetic", brand.load_progress()["answers"])
+
+    def test_profiles_from_before_styles_get_no_new_questions(self):
+        for qid, text in ANSWERS:
+            if qid in ("style_pack", "brand_files", "style_direction"):
+                continue
+            brand.answer(qid, text) if qid in brand.BY_ID else None
+        brand.answer("aesthetic", "techy")
+        self.assertIsNone(brand.next_question())
+        self.assertEqual(brand.finish()["style"]["pack"], "classic")   # legacy answers -> Classic
+
+    def test_let_my_style_decide(self):
+        p = self.onboard({"caption_style": "let my style decide", "zoom_style": "let my style decide"})
+        self.assertEqual(p["captions"]["style"], "phrase_lines")        # Luxe's recommendation
+        self.assertEqual(p["captions"]["animation"], "pop")             # her own choice, kept
+        self.assertEqual(p["zooms"]["scale_max"], 1.06)                 # Luxe's zoom grammar
+
     def test_no_captions_skips_caption_questions(self):
+        brand.answer("style_pack", "minimal")
         brand.answer("colors", "black, white")
         brand.answer("fonts", "1")
+        brand.answer("brand_files", "skip")
         brand.answer("headline", "none")
         brand.answer("caption_style", "none")
         self.assertEqual(brand.next_question()["id"], "pacing")
@@ -154,7 +186,9 @@ def W(text, start, dur=0.3, gap=0.05):
 class Planning(TempBrand):
     def setUp(self):
         super().setUp()
-        self.profile = self.onboard()
+        self.onboard()
+        # these planning tests check the original (Classic) behaviour
+        self.profile = brand.compile_profile(dict(brand.load_progress()["answers"], style={"pack": "classic"}))
         self.words = (W("Some of y'all are not waiting on a better camera.", 0.4)
                       + W("Where do I put it?", 4.5) + W("What angle do I get?", 6.5)
                       + W("That's why I made the Morning Light Studio.", 9.0)

@@ -4,6 +4,9 @@ This guide assumes you've never used Terminal or Claude Code before. Take it one
 step at a time. It takes about **30–40 minutes**, and most of that is waiting
 for downloads.
 
+> **Beta testers:** you need Laine's invitation (see LICENSE). The steps are the
+> same for everyone.
+
 **You need:**
 - An Apple silicon Mac (M1 or newer) with macOS 13 Ventura or newer.
   - To check, open the Apple menu → **About This Mac**. "Chip" should say Apple M1, M2, M3 or later.
@@ -62,7 +65,7 @@ This puts the editor in a folder called **laine-ai-reel-editor** in your home
 folder, then starts the installer. The installer:
 
 1. **Checks your Mac**: the chip, macOS version and free space.
-2. **Lists the tools it needs** that you don't have yet: FFmpeg, whisper.cpp, Node.js, and Google Chrome if missing. It then asks:
+2. **Lists the tools it needs** that you don't have yet: FFmpeg, whisper.cpp, Node.js 22 or newer, and Google Chrome if missing. (If you already have an older Node.js, it's left alone and a newer one is added.) It then asks:
    **"Install the missing tools listed above with Homebrew now? [Y/n]"**
    → Press **Return** for yes.
 3. **Asks to download the speech model** (465 MB):
@@ -100,9 +103,11 @@ You can close Terminal now. You won't need it again for normal use.
     > **Edit my reel**
 
     When Claude asks for the video, **drag the video file into the chat**.
-    After a few minutes, a review page opens in your browser. Watch it, leave
-    notes, press **Save feedback**, then tell Claude **apply my review**. When
-    you're happy, press **Finalize & Download**.
+    Claude cuts it, plans what goes on screen, picks a headline from your own
+    words, and renders it. After a few minutes, a review page opens in your
+    browser. Watch it, leave notes, press **Save feedback**, then tell Claude
+    **apply my review**. When you're happy, press **Finalize & Download**.
+    The full guide is **[docs/CUSTOMER-GUIDE.md](docs/CUSTOMER-GUIDE.md)**.
 
 ### What Claude may ask you to allow
 

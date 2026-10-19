@@ -165,3 +165,94 @@ class Tokens(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CustomerApprovedJoin(unittest.TestCase):
+    """'They started, they started because': no full silence between the takes. Only with
+    the customer's explicit approval may the cut END at a measured quiet point; the start
+    still needs real silence, and without approval nothing changes."""
+    words = words_from("everything.@57.92-58.175 They@59.795-60.12 started,@60.12-60.56 "
+                       "they@60.56-60.86 started@60.86-61.02 because@61.02-61.23")
+    gaps = [{"start": 58.175, "end": 59.795}]
+
+    def review(self, **extra):
+        return {"remove": [dict({"from": 1, "to": 2, "type": "restart", "reason": "first take"}, **extra)]}
+
+    def test_without_approval_it_stays_in(self):
+        cands = cleanup.merge_review([], self.review(approved_end=60.535), self.words)
+        cuts, dec = cleanup.place(cands, self.words, self.gaps, NATURAL)
+        self.assertEqual(cuts, [])
+
+    def test_approved_join_cuts_from_silence_to_the_quiet_point(self):
+        cands = cleanup.merge_review([], self.review(approved_end=60.535, approved_by="customer review note"),
+                                     self.words)
+        (cut,), dec = cleanup.place(cands, self.words, self.gaps, NATURAL)
+        self.assertTrue(58.175 <= cut["start"] <= 59.795)          # starts in real silence
+        self.assertAlmostEqual(cut["end"], 60.535, delta=0.021)    # ends at the approved point
+        self.assertEqual(cut["approved_join"], "customer review note")
+
+    def test_start_still_needs_real_silence(self):
+        cands = cleanup.merge_review([], self.review(approved_end=60.535, approved_by="x"), self.words)
+        cuts, _ = cleanup.place(cands, self.words, [], NATURAL)
+        self.assertEqual(cuts, [])
+
+
+class RepeatsWithoutPauses(unittest.TestCase):
+    """Real timings from the first customer reel: two repeats spoken with no pause."""
+    words = words_from("perfect@48.23-48.56 time.@48.56-48.74 The@48.74-48.92 women@48.92-49.43 "
+                       "creating@49.43-49.85 freedom@49.85-50.32 online.@50.32-50.721 The@54.83-54.92 "
+                       "women@54.92-55.36 creating@55.36-55.64 freedom@55.64-56.1 online@56.1-56.38 "
+                       "didn't@56.38-56.7 start@56.7-56.834")
+    gaps = [{"start": 50.721, "end": 54.846}]
+
+    def dip(self, at, level, speech=-21.0):
+        return lambda t0, t1: (at, level, speech) if t0 <= at <= t1 else None
+
+    def test_short_sentence_restarted_in_full_is_a_false_start(self):
+        c = [x for x in cleanup.detect(self.words) if x["type"] == "restart"]
+        self.assertEqual(c[0]["words"], [2, 6])
+
+    def test_identical_sentences_stay_emphasis(self):
+        w = W(["Do", "it", "now.", "Do", "it", "now."])
+        self.assertFalse([x for x in cleanup.detect(w) if x["type"] == "restart"])
+
+    def test_quote_and_occurrence(self):
+        self.assertEqual(cleanup.find_phrase(self.words, "the women creating freedom online", "first"), (2, 6))
+        self.assertEqual(cleanup.find_phrase(self.words, "The women", "second"), (7, 8))
+        self.assertEqual(cleanup.find_phrase(self.words, "the women", "last"), (7, 8))
+        self.assertIn("2 time", cleanup.find_phrase(self.words, "the women", 3))
+        self.assertIn("isn't in the transcript", cleanup.find_phrase(self.words, "a better way"))
+
+    def test_quiet_point_join_when_asked(self):
+        rv = {"remove": [{"phrase": "the women creating freedom online", "occurrence": "first"}]}
+        cands = cleanup.merge_review([], rv, self.words)
+        cuts, dec = cleanup.place(cands, self.words, self.gaps, NATURAL, dip=self.dip(48.85, -35.9))
+        (cut,) = cuts
+        self.assertAlmostEqual(cut["start"], 48.85, delta=0.011)
+        self.assertGreaterEqual(cut["end"], 50.721)
+        self.assertTrue(dec[cands[0]["id"]]["quiet_join"])
+
+    def test_not_quiet_enough_is_explained(self):
+        rv = {"remove": [{"phrase": "the women creating freedom online", "occurrence": "first"}]}
+        cands = cleanup.merge_review([], rv, self.words)
+        cuts, dec = cleanup.place(cands, self.words, self.gaps, NATURAL, dip=self.dip(48.85, -27.0))
+        self.assertEqual(cuts, [])
+        self.assertIn("would clip \"time.\"", dec[cands[0]["id"]]["why"])
+
+    def test_automatic_removals_need_a_quieter_point(self):
+        cands = [c for c in cleanup.detect(self.words) if c["type"] == "restart"]
+        cuts, _ = cleanup.place(cands, self.words, self.gaps, NATURAL, dip=self.dip(48.85, -35.9))
+        self.assertEqual(cuts, [])                         # 14.9 dB: enough when asked, not on its own
+        cuts, _ = cleanup.place(cands, self.words, self.gaps, NATURAL, dip=self.dip(48.85, -40.0))
+        self.assertEqual(len(cuts), 1)
+
+    def test_a_join_that_failed_the_speech_check_is_not_retried(self):
+        rv = {"remove": [{"phrase": "the women creating freedom online", "occurrence": "first"}]}
+        cands = cleanup.merge_review([], rv, self.words)
+        cuts, _ = cleanup.place(cands, self.words, self.gaps, NATURAL, dip=self.dip(48.85, -35.9), no_dip={2})
+        self.assertEqual(cuts, [])
+
+    def test_phrase_not_found_is_reported(self):
+        cands = cleanup.merge_review([], {"remove": [{"phrase": "nothing like this"}]}, self.words)
+        self.assertTrue(cands[0]["unresolved"])
+        self.assertIn("isn't in the transcript", cands[0]["reason"])

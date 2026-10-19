@@ -159,3 +159,19 @@ button.big { padding: 12px 22px; font-size: 17px; }
 .lib .meta input { font-weight: 600; }
 .lib .acts { display: flex; flex-direction: column; gap: 6px; }
 .fontsample { font-size: 26px; }
+.outline-sample { font: 700 30px/1.2 -apple-system, sans-serif; padding: 6px 12px; border-radius: 10px;
+                  background: linear-gradient(90deg, #1f2a44 0 50%, #e9e4dc 50% 100%); }
+.stylecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 8px 0; }
+.stylecard { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 12px;
+             cursor: pointer; display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.stylecard span { font-size: 13px; color: var(--dim); }
+.stylecard.on { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand) inset; }
+input.hex { width: 92px; font-family: ui-monospace, monospace; text-transform: uppercase; }
+#styleWords { width: 100%; }
+
+.fontlib summary { cursor: pointer; font-weight: 600; margin: 8px 0; }
+.fontcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 6px 0 12px; }
+.fontcard { border: 1px solid var(--line, #333); border-radius: 10px; padding: 8px; }
+.fontcard .fsample { font-size: 26px; line-height: 1.15; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fontcard .row { gap: 4px; flex-wrap: wrap; }
+.fontcard button { padding: 3px 7px; font-size: 12px; }

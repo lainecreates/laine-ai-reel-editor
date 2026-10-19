@@ -12,10 +12,16 @@ Two halves:
    Meaning-level judgements (abandoned sentences, "Tuesday, I mean Wednesday")
    come from a review file written by Claude: cleanup.review.json.
 
+   Customers (via Claude) can also name a phrase and which time it was said:
+   {"phrase": "they started", "occurrence": "first"} in cleanup.review.json.
+
 2. place()   - turn each candidate into a cut ONLY if the audio allows a clean
-   edit: both ends must land in a silent gap measured by ffmpeg, and the
-   speech between the gaps must match the words being removed. Anything
-   uncertain is left in, with the reason recorded.
+   edit. Each end lands in a silent gap measured by ffmpeg; where the speaker
+   runs straight on (no silence), it may land on a measured quiet point between
+   the two words instead - at least DIP_DB quieter than the speech around it.
+   The speech check re-transcribes every join afterwards; a quiet-point join
+   that doesn't pass is put back automatically. Anything else is left in, with
+   the reason recorded in plain words.
 """
 
 import re
@@ -29,6 +35,8 @@ EMPHATIC = {"very", "really", "so", "no", "yes", "yeah", "bye", "ha", "haha", "t
 # Style words: flagged for review, never removed automatically.
 SOFT_FILLERS = {"like", "basically", "literally", "actually", "honestly", "just"}
 MAX_NGRAM = 6
+DIP_DB = 12.0          # a quiet point between words must be this much quieter than the speech
+DIP_DB_AUTO = 15.0     # ... and more so for removals nobody asked for
 SENTENCE_END = re.compile(r"[.?!]\W*$")
 CUT_OFF = re.compile(r"(-|—|–|\.\.\.|…)$")
 
@@ -114,7 +122,27 @@ def detect(words):
             else:
                 add("false_start", start, i, "cut-off phrase - flagged for review", auto=False)
         i += 1
+    _sentence_restarts(words, keys, add)
     return cands
+
+
+def _sentence_restarts(words, keys, add):
+    """'The women creating freedom online. The women creating freedom online didn't
+    start...' - a short sentence that the next sentence starts with again and then
+    finishes: the first one was a false start."""
+    sents, cur = [], []
+    for i, w in enumerate(words):
+        cur.append(i)
+        if SENTENCE_END.search(w["text"]):
+            sents.append(cur)
+            cur = []
+    if cur:
+        sents.append(cur)
+    for a, b in zip(sents, sents[1:]):
+        k = len(a)
+        if 3 <= k <= 10 and len(b) > k and all(keys[x] for x in a) \
+                and [keys[x] for x in a] == [keys[x] for x in b[:k]]:
+            add("restart", a[0], a[-1], "sentence started, then restarted and finished")
 
 
 def merge_review(cands, review, words):
@@ -127,13 +155,45 @@ def merge_review(cands, review, words):
             c["auto"] = False
             c["reason"] += " (kept after review)"
     for r in review.get("remove", []):
+        if r.get("phrase") and r.get("from") is None:
+            found = find_phrase(words, r["phrase"], r.get("occurrence", "first"))
+            if isinstance(found, str):          # not found: say so, never ignore it silently
+                cands.append({"id": f"r{len(cands) + 1}", "type": r.get("type", "review"), "words": None,
+                              "text": r["phrase"], "reason": found, "auto": False, "source": "review",
+                              "unresolved": True})
+                continue
+            r = dict(r, **{"from": found[0], "to": found[1]})
         i, j = int(r["from"]), int(r["to"])
         if not (0 <= i <= j < len(words)):
             continue
-        cands.append({"id": f"r{len(cands) + 1}", "type": r.get("type", "review"),
-                      "words": [i, j], "text": " ".join(w["text"] for w in words[i:j + 1]),
-                      "reason": r.get("reason", "review"), "auto": True, "source": "review"})
+        c = {"id": f"r{len(cands) + 1}", "type": r.get("type", "review"),
+             "words": [i, j], "text": " ".join(w["text"] for w in words[i:j + 1]),
+             "reason": r.get("reason", "review"), "auto": True, "source": "review"}
+        if r.get("approved_end") is not None and r.get("approved_by"):
+            # a one-off the customer approved: this cut may END at a measured quiet point
+            # (not a full silence) - the start still has to be in real silence
+            c["approved_end"] = float(r["approved_end"])
+            c["approved_by"] = str(r["approved_by"])
+        cands.append(c)
     return cands
+
+
+def find_phrase(words, phrase, occurrence="first"):
+    """(from, to) word numbers of the Nth time `phrase` was said ("first", "second",
+    "last", or 1, 2, ...), or a plain-words reason it can't be found."""
+    want = [t for t in re.findall(r"[a-z0-9']+", str(phrase).lower().replace("\u2019", "'"))]
+    if not want:
+        return "no words to look for"
+    keys = [norm(heard(w)) for w in words]
+    hits = [i for i in range(len(words) - len(want) + 1) if keys[i:i + len(want)] == want]
+    if not hits:
+        return f"\"{phrase}\" isn't in the transcript (check the wording against `reel.py words`)"
+    names = {"first": 1, "second": 2, "third": 3, "fourth": 4, "last": len(hits)}
+    n = names.get(str(occurrence).lower(), None) if not str(occurrence).isdigit() else int(occurrence)
+    if not n or not 1 <= n <= len(hits):
+        return f"\"{phrase}\" is said {len(hits)} time(s); occurrence \"{occurrence}\" doesn't exist"
+    i = hits[n - 1]
+    return i, i + len(want) - 1
 
 
 # -- 2. placing cuts on the audio ------------------------------------------
@@ -142,8 +202,10 @@ def _mid(w):
     return (w["start"] + w["end"]) / 2
 
 
-def place(cands, words, gaps, pacing, fps=None):
-    """Return (cuts, decisions). gaps = fine silences [{"start","end"}]."""
+def place(cands, words, gaps, pacing, fps=None, dip=None, no_dip=()):
+    """Return (cuts, decisions). gaps = fine silences [{"start","end"}].
+    dip(t0, t1) -> (t, level_db, speech_db) measures the quietest point between two
+    words (pipeline: from the clip's audio); None = silence-only (the old rule)."""
     spans = _spans([c for c in cands if c["auto"]])
     gaps = sorted((g["start"], g["end"]) for g in gaps)
     cuts, decisions = [], {}
@@ -160,17 +222,43 @@ def place(cands, words, gaps, pacing, fps=None):
             a_opts = [g for g in gaps if g[0] <= 0.05 and g[1] < _mid(first)] or [(0.0, 0.0)]
         else:
             a_opts = [g for g in gaps if g[0] >= prev["end"] - 0.1 and g[0] < _mid(first)]
+        approved = next((c for c in cands if c["id"] in ids and c.get("approved_end") is not None), None)
+        if approved:
+            t = approved["approved_end"]
+            gaps_b = sorted(gaps + [(t - 0.02, t + 0.02)])
+        else:
+            gaps_b = gaps
         # Gap B: the first silence after the last removed word.
         if nxt is None:
-            b_opts = [g for g in gaps if g[1] > _mid(last)]
+            b_opts = [g for g in gaps_b if g[1] > _mid(last)]
         else:
-            b_opts = [g for g in gaps if g[1] > _mid(last) and g[1] <= nxt["start"] + 0.15]
+            b_opts = [g for g in gaps_b if g[1] > _mid(last) and g[1] <= nxt["start"] + 0.15]
 
+        # No silence where the speaker runs straight on: a measured quiet point between
+        # the two words can carry the join instead.
+        asked = any(c.get("source") == "review" for c in cands if c["id"] in ids)
+        dip_here = dip if i not in no_dip else None    # a quiet join here failed the speech check before
+        need = DIP_DB if asked else DIP_DB_AUTO
+        joins = {}
+        if not a_opts and prev is not None and dip_here:
+            # word times from the transcriber drift: look from the middle of the word before
+            # into the first part of the removed word for the real boundary
+            q = dip_here(_mid(prev), min(first["end"] - 0.03, first["start"] + 0.2))
+            if q and q[2] - q[1] >= need:
+                a_opts = [(q[0] - 0.01, q[0] + 0.01)]
+                joins["start"] = q
+        if not b_opts and nxt is not None and dip_here:
+            q = dip_here(_mid(last), _mid(nxt))
+            if q and q[2] - q[1] >= need:
+                b_opts = [(q[0] - 0.01, q[0] + 0.01)]
+                joins["end"] = q
         reason = None
         if not a_opts:
-            reason = "no silent gap before it - would clip a word"
+            reason = ("no pause or quiet point before it - a cut there would clip "
+                      f"\"{prev['text'] if prev else ''}\"" if dip_here else "no silent gap before it - would clip a word")
         elif not b_opts:
-            reason = "no silent gap after it - would clip a word"
+            reason = ("no pause or quiet point after it - a cut there would clip "
+                      f"\"{nxt['text'] if nxt else ''}\"" if dip_here else "no silent gap after it - would clip a word")
         else:
             A, B = a_opts[-1], b_opts[0]
             speech = B[0] - A[1]
@@ -194,10 +282,18 @@ def place(cands, words, gaps, pacing, fps=None):
         else:
             start = A[0] + min(before, (A[1] - A[0]) / 2)
             end = B[1] - min(after, (B[1] - B[0]) / 2) if nxt else B[1]
-        cuts.append({"start": start, "end": end, "kind": "content", "candidates": ids,
-                     "silence": [round(A[0], 3), round(B[1], 3)]})
+        cut = {"start": start, "end": end, "kind": "content", "candidates": ids,
+               "silence": [round(A[0], 3), round(B[1], 3)]}
+        if approved:
+            cut["approved_join"] = approved["approved_by"]
+        if joins:
+            cut["quiet_joins"] = {k: {"at": round(v[0], 3), "level_db": round(v[1], 1),
+                                      "below_speech_db": round(v[2] - v[1], 1)} for k, v in joins.items()}
+        cuts.append(cut)
         for cid in ids:
-            decisions[cid] = {"applied": True, "cut": [round(start, 3), round(end, 3)]}
+            decisions[cid] = {"applied": True, "cut": [round(start, 3), round(end, 3)],
+                              **({"approved_join": approved["approved_by"]} if approved else {}),
+                              **({"quiet_join": True} if joins else {})}
     return cuts, decisions
 
 

@@ -1,0 +1,241 @@
+{
+  "id": "minimal",
+  "version": "1.0.0",
+  "name": "Minimal",
+  "description": "Calm and clean: one plain sans family, generous space, no boxes or shapes, one element at a time, short crisp fades, near-silent ticks.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "phrase_lines",
+        "animation": "fade",
+        "emphasis": "bolder"
+      },
+      "treatment": {
+        "font": "body",
+        "weight": 500,
+        "in_s": 0.2
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "minimal.hook",
+        "headline_bar": "minimal.headline_bar",
+        "key_phrase": "minimal.key_phrase",
+        "stat": "minimal.stat",
+        "list": "minimal.list",
+        "question_list": "minimal.question_list",
+        "cta": "minimal.cta",
+        "lower_third": "minimal.lower_third",
+        "reaction": "minimal.reaction",
+        "pointer": "minimal.pointer",
+        "quote": "minimal.quote",
+        "contrast": "minimal.contrast",
+        "tip": "minimal.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "bar",
+            "name": "Accent bar"
+          },
+          {
+            "id": "centred",
+            "name": "Centred line"
+          },
+          {
+            "id": "underline",
+            "name": "Underlined"
+          }
+        ],
+        "list": [
+          {
+            "id": "dashes",
+            "name": "Dashes"
+          },
+          {
+            "id": "numbers",
+            "name": "Small numbers"
+          }
+        ],
+        "stat": [
+          {
+            "id": "numeral",
+            "name": "Light numeral"
+          },
+          {
+            "id": "line",
+            "name": "Numeral with a progress line",
+            "fits": {
+              "needs_percent": true
+            }
+          }
+        ],
+        "cta": [
+          {
+            "id": "arrow",
+            "name": "Text with arrow"
+          },
+          {
+            "id": "underline",
+            "name": "Underlined"
+          }
+        ],
+        "quote": [
+          {
+            "id": "bar",
+            "name": "Side bar"
+          }
+        ],
+        "contrast": [
+          {
+            "id": "arrow",
+            "name": "Dimmed \u2192 bright"
+          }
+        ],
+        "tip": [
+          {
+            "id": "label",
+            "name": "Tip \u2014 label"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "short crisp fades"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "soft",
+        "graphic_in": "tick",
+        "emoji": "tick",
+        "cta": "soft",
+        "headline": "soft",
+        "tick": "tick"
+      },
+      "gain_offset_db": -8,
+      "recipes": {
+        "tick": {
+          "src": "aevalsrc='0.5*sin(2*PI*2400*t)*exp(-90*t)':s=48000:d=0.05",
+          "filters": "highpass=f=1500",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "soft": {
+          "src": "aevalsrc='0.3*sin(2*PI*880*t)*exp(-10*t)':s=48000:d=0.3",
+          "filters": "afade=t=in:st=0:d=0.01",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": false,
+      "graphic_shadow": true,
+      "graphic_border": false,
+      "emoji_shadow": false
+    },
+    "composition": {
+      "default": {
+        "align": "left",
+        "w": 820,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "h": 220
+        },
+        "stat": {
+          "w": 520,
+          "h": 220
+        },
+        "cta": {
+          "w": 700,
+          "h": 110,
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 110,
+          "h": 110
+        },
+        "pointer": {
+          "w": 160,
+          "h": 160
+        },
+        "lower_third": {
+          "w": 500,
+          "h": 80,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "w": 760,
+          "h": 80
+        },
+        "list": {
+          "w": 860,
+          "list_head": 20,
+          "row_h": 74,
+          "chars_per_row": 28
+        },
+        "question_list": {
+          "w": 860,
+          "list_head": 20,
+          "row_h": 74,
+          "chars_per_row": 28
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "subtle",
+      "frequency": "rare",
+      "scale_min": 1.03,
+      "scale_max": 1.05,
+      "min_gap_s": 12
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#111111",
+        "#8C8C8C",
+        "#F5F5F5"
+      ],
+      [
+        "#2B2D42",
+        "#8D99AE",
+        "#EDF2F4"
+      ],
+      [
+        "#3A5A40",
+        "#A3B18A",
+        "#F1F1EC"
+      ]
+    ],
+    "fonts": [
+      "Inter / Inter",
+      "Montserrat / Inter"
+    ]
+  }
+}

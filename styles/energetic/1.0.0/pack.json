@@ -1,0 +1,253 @@
+{
+  "id": "energetic",
+  "version": "1.0.0",
+  "name": "Energetic",
+  "description": "Fast and kinetic: heavy italic type, skewed tags, words punching in one by one, counters, whip moves and impact shakes, frequent punch zooms, risers and glitch hits.",
+  "aspects": {
+    "typography": {},
+    "captions": {
+      "recommended": {
+        "style": "word_pop",
+        "animation": "slam",
+        "emphasis": "color_fill"
+      },
+      "treatment": {
+        "font": "headline",
+        "weight": 800,
+        "italic": true,
+        "in_s": 0.12
+      }
+    },
+    "components": {
+      "by_intent": {
+        "hook": "energetic.hook",
+        "headline_bar": "energetic.headline_bar",
+        "key_phrase": "energetic.key_phrase",
+        "stat": "energetic.stat",
+        "list": "energetic.list",
+        "question_list": "energetic.question_list",
+        "cta": "energetic.cta",
+        "lower_third": "energetic.lower_third",
+        "reaction": "energetic.reaction",
+        "pointer": "energetic.pointer",
+        "quote": "energetic.quote",
+        "contrast": "energetic.contrast",
+        "tip": "energetic.tip"
+      },
+      "variants": {
+        "hook": [
+          {
+            "id": "tags",
+            "name": "Word-by-word tags"
+          },
+          {
+            "id": "line",
+            "name": "Whip line with flash underline"
+          }
+        ],
+        "list": [
+          {
+            "id": "tags",
+            "name": "Whipping tags"
+          },
+          {
+            "id": "counter",
+            "name": "Numbered burst"
+          }
+        ],
+        "stat": [
+          {
+            "id": "counter",
+            "name": "Counting tag"
+          },
+          {
+            "id": "burst",
+            "name": "Counter with burst lines"
+          }
+        ],
+        "cta": [
+          {
+            "id": "pulse",
+            "name": "Pulsing tag"
+          },
+          {
+            "id": "arrows",
+            "name": "Flashing arrows"
+          }
+        ],
+        "quote": [
+          {
+            "id": "punch",
+            "name": "Words punch in"
+          }
+        ],
+        "contrast": [
+          {
+            "id": "slash",
+            "name": "Slashed, then slammed"
+          }
+        ],
+        "tip": [
+          {
+            "id": "flash",
+            "name": "Flashing TIP label"
+          }
+        ]
+      }
+    },
+    "motion": {
+      "note": "whips, word-by-word slams, landing shakes, counters"
+    },
+    "shape": {},
+    "sound": {
+      "by_event": {
+        "zoom_punch": "whoosh_fast",
+        "graphic_in": "glitch",
+        "emoji": "impact",
+        "cta": "riser",
+        "headline": "impact",
+        "tick": "glitch"
+      },
+      "gain_offset_db": 0,
+      "recipes": {
+        "riser": {
+          "src": "aevalsrc='0.5*sin(2*PI*t*(300+2600*t*t))*t*1.6':s=48000:d=0.6",
+          "filters": "afade=t=out:st=0.55:d=0.05",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "whoosh_fast": {
+          "src": "anoisesrc=color=pink:amplitude=0.9:duration=0.3:sample_rate=48000",
+          "filters": "bandpass=f=2000:width_type=h:w=3000,afade=t=in:st=0:d=0.12:curve=exp,afade=t=out:st=0.12:d=0.18,volume=10",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "glitch": {
+          "src": "aevalsrc='sin(2*PI*1200*t)*lt(mod(t\\,0.03)\\,0.015)*0.6*exp(-8*t)':s=48000:d=0.25",
+          "filters": "anull",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        },
+        "impact": {
+          "src": "aevalsrc='0.9*sin(2*PI*t*(180-200*t))*exp(-10*t)':s=48000:d=0.35",
+          "filters": "lowpass=f=1200,volume=1.5",
+          "variants": [
+            1.0,
+            1.06,
+            0.94
+          ]
+        }
+      }
+    },
+    "decorations": {
+      "caption_outline": false,
+      "caption_glow": false,
+      "caption_shadow": true,
+      "graphic_box": true,
+      "graphic_shadow": false,
+      "graphic_border": false,
+      "emoji_shadow": false
+    },
+    "composition": {
+      "default": {
+        "align": "center",
+        "w": 940,
+        "zone": "upper_third"
+      },
+      "by_intent": {
+        "hook": {
+          "h": 340
+        },
+        "stat": {
+          "w": 620,
+          "h": 340
+        },
+        "cta": {
+          "w": 900,
+          "h": 180,
+          "zone": "center"
+        },
+        "reaction": {
+          "w": 230,
+          "h": 230
+        },
+        "pointer": {
+          "w": 230,
+          "h": 230
+        },
+        "lower_third": {
+          "w": 560,
+          "h": 110,
+          "zone": "lower_third"
+        },
+        "headline_bar": {
+          "w": 940,
+          "h": 110
+        },
+        "list": {
+          "w": 960,
+          "list_head": 20,
+          "row_h": 94,
+          "chars_per_row": 20
+        },
+        "question_list": {
+          "w": 960,
+          "list_head": 20,
+          "row_h": 94,
+          "chars_per_row": 20
+        },
+        "quote": {
+          "w": 900,
+          "h": 300
+        },
+        "contrast": {
+          "w": 900,
+          "h": 300
+        },
+        "tip": {
+          "w": 860,
+          "h": 240
+        }
+      }
+    },
+    "zoom": {
+      "style": "punchy",
+      "frequency": "frequent",
+      "scale_min": 1.12,
+      "scale_max": 1.22,
+      "min_gap_s": 2.5
+    }
+  },
+  "suggestions": {
+    "palettes": [
+      [
+        "#FF006E",
+        "#8338EC",
+        "#3A86FF"
+      ],
+      [
+        "#F72585",
+        "#4CC9F0",
+        "#FFFFFF"
+      ],
+      [
+        "#FB5607",
+        "#FFBE0B",
+        "#111111"
+      ]
+    ],
+    "fonts": [
+      "Bebas Neue / Montserrat",
+      "Montserrat / Inter"
+    ]
+  }
+}

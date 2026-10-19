@@ -98,7 +98,12 @@ FONT_DIRS = [config.ASSETS_DIR / "fonts", Path("~/Library/Fonts").expanduser(),
 
 
 def find_font_file(name):
-    """Look for an installed font file by name (read-only)."""
+    """Look for a font file by name (read-only): the fonts included with the editor
+    first, then the project's fonts folder and the Mac's installed fonts."""
+    from . import fontlib
+    included = fontlib.primary_file(name)
+    if included:
+        return included
     key = re.sub(r"[^a-z0-9]", "", name.lower())
     for d in FONT_DIRS:   # an exact name first ("Avenir Next", not "Avenir Next Condensed")
         if d.is_dir():
@@ -138,17 +143,46 @@ def _has_captions(a):
     return a.get("caption_style") != "none"
 
 
+# New customers start with a style (a starting point, never a template) and end
+# with their own words. Profiles made before styles existed answered "aesthetic"
+# instead and are never asked these new questions (their reels stay Classic).
+
+STYLE_CHOICES = [("luxe", "Luxe - quiet, elegant, refined"),
+                 ("playful", "Playful - fun, colourful, hand-made"),
+                 ("magazine", "Magazine - editorial, curated, smart"),
+                 ("minimal", "Minimal - calm, clean, lots of space"),
+                 ("bold", "Bold - big, heavy, confident"),
+                 ("energetic", "Energetic - fast, kinetic, hype")]
+PACK_TO_AESTHETIC = {"luxe": "soft_luxe", "playful": "playful", "magazine": "editorial",
+                     "minimal": "clean_minimal", "bold": "bold_energetic", "energetic": "bold_energetic"}
+
 QUESTIONS = [
-    _q("colors", "1. Colours and fonts",
-       "What are your brand colours? List 2-4, most important first.", "colors",
-       help="Hex codes (#E8B4B8) or names (blush pink, cream, black). The first is your "
-            "main colour; the second is used to highlight key words."),
-    _q("fonts", "1. Colours and fonts", "Which fonts feel like you?", "fonts", options=[
+    _q("style_pack", "1. Your style", "Which style is the best starting point for your reels?",
+       "choice", options=STYLE_CHOICES, when=lambda a: "aesthetic" not in a,
+       help="It's only a starting point: at the end you can describe your style in your own "
+            "words, mix in parts of other styles, and change anything later. Not sure? Ask "
+            "and I'll describe each one or suggest one from how you talk about your brand."),
+    _q("colors", "2. Colours and fonts",
+       "What are your exact brand colours? Paste your HEX codes, main colour first (2-4).",
+       "colors",
+       help="Exact HEX codes like #FF3E8E keep every reel precisely on-brand. Colour names work "
+            "too (blush pink, cream). No brand colours yet? Say 'help me choose' and I'll "
+            "suggest palettes that suit your style. The first is your main colour; the second "
+            "highlights key words."),
+    _q("fonts", "2. Colours and fonts", "Which fonts feel like you?", "fonts", options=[
         ("Montserrat / Inter", "Modern and clean (Montserrat headlines, Inter text)"),
         ("Playfair Display / Lato", "Elegant (serif headlines, simple text)"),
         ("Bebas Neue / Montserrat", "Bold and loud (tall caps headlines)"),
         ("Poppins / Poppins", "Friendly and rounded"),
-    ], help="Pick one, or name your own as 'Headline font / Text font'."),
+    ], help="Have your own font files? Drag the TTF/OTF files into the chat and I'll add them to "
+            "your library and use them. Or pick a pairing, or name your own as "
+            "'Headline font / Text font'."),
+    _q("brand_files", "2. Colours and fonts",
+       "Do you have a logo, graphics, images or sound effects you'd like to use? (optional)",
+       "text", optional=True, when=lambda a: "aesthetic" not in a,
+       help="Drag them into the chat (PNG/JPG images, MP3/WAV sounds) and tell me what each is "
+            "for - e.g. 'my logo, top right' or 'use this sound for headlines'. Nothing yet? "
+            "Say 'skip'; you can add them any time in the Library tab."),
     _q("headline", "1. Colours and fonts",
        "Do you want a headline title on your reels (in your headline font)?", "choice", options=[
         ("opening_hook", "An opening hook title for the first ~3 seconds"),
@@ -156,6 +190,7 @@ QUESTIONS = [
         ("both", "A big opening hook, then a small title that stays at the top"),
         ("none", "No headline")]),
     _q("caption_style", "2. Captions", "How should captions look?", "choice", options=[
+        ("style", "Let my style decide (recommended)"),
         ("word_pop", "One word at a time, popping on"),
         ("karaoke", "A short line, with the word being said highlighted"),
         ("phrase_lines", "Clean subtitle lines (1-2 lines)"),
@@ -170,11 +205,11 @@ QUESTIONS = [
        options=[("small", "Small and subtle"), ("medium", "Medium"),
                 ("large", "Large and bold")], when=_has_captions),
     _q("caption_animation", "2. Captions", "How should captions appear?", "choice", options=[
-        ("pop", "Pop / bounce in"), ("fade", "Soft fade"), ("slide_up", "Slide up"),
+        ("style", "Let my style decide (recommended)"), ("pop", "Pop / bounce in"), ("fade", "Soft fade"), ("slide_up", "Slide up"),
         ("typewriter", "Typewriter, letter by letter"), ("none", "Just appear")],
        when=_has_captions),
     _q("caption_emphasis", "2. Captions", "How should key words stand out?", "choice", options=[
-        ("accent_color", "In my highlight colour"), ("accent_box", "In a colour box"),
+        ("style", "Let my style decide (recommended)"), ("accent_color", "In my highlight colour"), ("accent_box", "In a colour box"),
         ("bigger", "Bigger than the other words"), ("none", "They don't")],
        when=_has_captions),
     _q("caption_case", "2. Captions", "Caption lettering?", "choice", options=[
@@ -189,14 +224,14 @@ QUESTIONS = [
         ("natural", "Natural - keep my breathing room"), ("tight", "Tight - no dead air"),
         ("fast", "Fast - punchy, TikTok energy")]),
     _q("zoom_style", "3. Pace and zooms", "What kind of zooms do you like?", "choice", options=[
-        ("subtle", "Subtle slow push-ins on key moments"),
+        ("style", "Let my style decide (recommended)"), ("subtle", "Subtle slow push-ins on key moments"),
         ("punchy", "Punchy snap zooms"),
         ("mixed", "A mix: snap zooms at cuts, slow pushes on key lines"),
         ("none", "No zooms")]),
     _q("zoom_frequency", "3. Pace and zooms", "How often should the frame zoom?", "choice",
        options=[("rare", "Rarely - only the biggest moments"),
                 ("moderate", "Every few sentences"), ("frequent", "Often - keep it moving")],
-       when=lambda a: a.get("zoom_style") != "none"),
+       when=lambda a: a.get("zoom_style") not in ("none", "style")),
     _q("graphics_density", "4. Graphics", "How much on-screen graphics do you want?", "choice",
        options=[("minimal", "Minimal - only when it really helps"),
                 ("balanced", "Balanced"), ("busy", "Busy - something every few seconds")]),
@@ -224,11 +259,18 @@ QUESTIONS = [
     _q("aesthetic", "6. Aesthetic", "Which overall look fits your brand best?", "choice",
        options=[("clean_minimal", "Clean and minimal"), ("soft_luxe", "Soft and luxe"),
                 ("bold_energetic", "Bold and energetic"), ("playful", "Playful and colourful"),
-                ("editorial", "Editorial / magazine"), ("techy", "Sleek and techy")]),
+                ("editorial", "Editorial / magazine"), ("techy", "Sleek and techy")],
+       when=lambda a: "aesthetic" in a),   # profiles made before styles existed only
     _q("personality", "6. Aesthetic", "Three words for how your videos should feel?", "text",
        help="For example: warm, confident, real."),
     _q("handle", "6. Aesthetic", "Your @handle or brand name for end cards? (optional)",
        "text", optional=True),
+    _q("style_direction", "6. Aesthetic",
+       "In your own words, how should your reels look and feel? Anything you always or never want? (optional)",
+       "text", optional=True, when=lambda a: "aesthetic" not in a,
+       help="Everyday language is perfect, e.g. 'hot pink headlines, clean captions, no outlines "
+            "or glows' or 'calm and editorial, never emojis'. I'll turn it into exact settings and "
+            "read it back to you. Say 'skip' if the style says it all."),
     _q("reference_reel", "7. Inspiration",
        "Is there a reel you love the editing of? Give a path to the video file (optional).",
        "path", optional=True,
@@ -365,6 +407,66 @@ def _now():
 # -- compile ----------------------------------------------------------------
 
 CAPTION_SIZE_PX = {"small": 58, "medium": 76, "large": 100}
+# Caption outline (Brand settings). The default is the look every reel had before
+# this was a setting, so existing reels render exactly as they did.
+OUTLINE_WIDTHS = {"thin": 0.06, "medium": 0.10, "thick": 0.16}
+DEFAULT_OUTLINE = {"enabled": True, "color": "#000000", "thickness": "thick", "opacity": 0.82}
+
+
+def caption_outline(answers, pack_default=DEFAULT_OUTLINE):
+    """The caption outline: the customer's own setting if they made one, else the
+    style pack's default (Classic: the original look), else none (plain)."""
+    if answers.get("caption_outline"):
+        o, src = dict(DEFAULT_OUTLINE, **answers["caption_outline"]), "brand"
+    elif pack_default:
+        o, src = dict(pack_default), "pack"
+    else:
+        o, src = dict(DEFAULT_OUTLINE, enabled=False), "engine"
+    o["width_em"] = OUTLINE_WIDTHS[o["thickness"]]
+    o["source"] = src
+    return o
+
+
+# Settings a style pack recommends when the customer picks it. The customer can
+# keep their own instead (answers["style"]["keep"]); colours, fonts, caption
+# position, size, case and colour always stay theirs.
+PACK_KEEPABLE = {"caption_style": ("captions", "style"), "caption_animation": ("captions", "animation"),
+                 "caption_emphasis": ("captions", "emphasis"), "zooms": ("zooms", None)}
+
+
+def _apply_pack(profile, answers):
+    from . import styles
+    st = profile.get("style") or {}
+    if not st or st.get("pack") == "classic" and not st.get("mix"):
+        return
+    keep = set((answers.get("style") or {}).get("keep") or [])
+    r = styles.resolve(profile)
+    rec = r["aspects"]["captions"].get("recommended", {})
+    caps = profile["captions"]
+    for key, field in (("caption_style", "style"), ("caption_animation", "animation"),
+                       ("caption_emphasis", "emphasis")):
+        if key not in keep and rec.get(field) and caps.get("enabled"):
+            caps[field] = rec[field]
+            if field == "style":
+                caps["max_lines"] = 1 if rec[field] in ("word_pop", "keyword_boxes") else 2
+    zoom = r["aspects"].get("zoom") or {}
+    if "zooms" not in keep and zoom and profile["zooms"].get("style") not in (None, "none"):
+        profile["zooms"].update({k: zoom[k] for k in ("style", "frequency", "scale_min", "scale_max",
+                                                      "min_gap_s") if k in zoom})
+    snd = r["aspects"]["sound"]
+    if snd.get("gain_offset_db") and profile.get("sfx", {}).get("gain_db") is not None:
+        profile["sfx"]["gain_db"] = profile["sfx"]["gain_db"] + snd["gain_offset_db"]
+
+
+def _style_and_outline(answers):
+    from . import styles
+    style = styles.compile_choice(answers)
+    pack = styles.load_pack(style["pack"], style["version"])
+    mixed = {a: m for m in style["mix"] for a in m["aspects"]}
+    cap_pack = styles.load_pack(mixed["captions"]["pack"], mixed["captions"]["version"]) \
+        if "captions" in mixed else pack
+    default = cap_pack.get("aspects", {}).get("captions", {}).get("outline_default")
+    return style, caption_outline(answers, default)
 CAPTION_CHARS = {"small": 26, "medium": 20, "large": 15}  # per line at 1080 px wide
 ZOOM_SCALES = {"subtle": (1.06, 1.10), "punchy": (1.15, 1.22), "mixed": (1.08, 1.18)}
 ZOOM_GAP = {"rare": 9.0, "moderate": 5.0, "frequent": 2.8}
@@ -379,8 +481,40 @@ AESTHETIC_TOKENS = {
 }
 
 
+def _with_style(answers):
+    """New-flow answers (style_pack, style_direction) -> the style choice and the
+    classic aesthetic tokens the renderer still uses as a base."""
+    a = dict(answers)
+    pack = a.get("style_pack")
+    if pack:
+        a.setdefault("aesthetic", PACK_TO_AESTHETIC.get(pack, "clean_minimal"))
+        st = dict(a.get("style") or {})
+        st.setdefault("pack", pack)
+        if a.get("style_direction") and not st.get("direction"):
+            st["direction"] = a["style_direction"]
+        # what they chose themselves in onboarding stays theirs; "let my style decide"
+        # takes the style's recommendation
+        keep = set(st.get("keep") or [])
+        for key in ("caption_style", "caption_animation", "caption_emphasis"):
+            if key in a and a[key] != "style":
+                keep.add(key)
+        if "zoom_style" in a and a["zoom_style"] != "style":
+            keep.add("zooms")
+        st["keep"] = sorted(keep)
+        a["style"] = st
+    # placeholders for "let my style decide" (the style fills them in)
+    for key, base in (("caption_style", "phrase_lines"), ("caption_animation", "fade"),
+                      ("caption_emphasis", "accent_color"), ("zoom_style", "subtle")):
+        if a.get(key) == "style":
+            a[key] = base
+    if a.get("zoom_style") == "subtle" and answers.get("zoom_style") == "style":
+        a.setdefault("zoom_frequency", "moderate")
+    return a
+
+
 def compile_profile(answers, reference=None):
     """Answers -> the brand.json structure the planner and renderer read."""
+    answers = _with_style(answers)
     missing = [q["id"] for q in applicable(answers)
                if q["id"] not in answers and not q["optional"]]
     if missing:
@@ -402,6 +536,11 @@ def compile_profile(answers, reference=None):
     caption_text = primary if cap_color == "primary" else "#FFFFFF"
     keyword_color = {"white_primary_keywords": primary, "white_accent_keywords": accent}.get(
         cap_color)
+    # exact colours for particular things ("hot pink headlines") beat the palette defaults
+    roles = answers.get("color_roles") or {}
+    caption_text = roles.get("captions") or caption_text
+    keyword_color = roles.get("key_words") or keyword_color
+    headline_color = roles.get("headline") or primary
     # Profiles from before the headline question: a hook title came with text_callouts.
     headline = answers.get("headline") or (
         "opening_hook" if "text_callouts" in elements else "none")
@@ -416,13 +555,17 @@ def compile_profile(answers, reference=None):
     head_family, head_file = lib_font("headline", fonts["headline"])
     body_family, body_file = lib_font("body", fonts["body"])
     gfont = answers.get("graphics_font") or "headline"
-    if gfont in ("headline", "body"):
+    if str(gfont).startswith("font:"):            # any font by name (e.g. an included one)
+        g_family = gfont.split(":", 1)[1]
+        g_file = find_font_file(g_family)
+    elif gfont in ("headline", "body"):
         g_family, g_file = (head_family, head_file) if gfont == "headline" else (body_family, body_file)
     else:
         g_family, g_file = lib_font("graphics", fonts["headline"]) if font_files.get("graphics") \
             else (head_family, head_file)
     sound_map = {k: v for k, v in (answers.get("sound_map") or {}).items() if v}
     logo = answers.get("logo") or None
+    style, outline = _style_and_outline(answers)
     profile = {
         "version": PROFILE_VERSION,
         "updated": _now(),
@@ -432,7 +575,8 @@ def compile_profile(answers, reference=None):
             "card_background": card_bg, "card_text": readable_on(card_bg),
             "on_primary": readable_on(primary), "on_accent": readable_on(accent),
             "caption_text": caption_text, "caption_keyword": keyword_color,
-            "caption_outline": "#000000",
+            "headline": headline_color, "on_headline": readable_on(headline_color),
+            "caption_outline": outline["color"],
         },
         "fonts": {
             "headline": head_family, "body": body_family, "graphics": g_family,
@@ -452,7 +596,10 @@ def compile_profile(answers, reference=None):
             "case": answers.get("caption_case", "as_spoken"),
             "color": cap_color,
             "font": "body",
+            "outline": {k: v for k, v in outline.items() if k != "source"},
+            "outline_source": outline["source"],
         },
+        "style": style,
         "headline": {"style": headline, "font": "headline"},
         "pacing": answers["pacing"],
         "framing": {"mode": "cover", "focus_x": 0.5},
@@ -491,6 +638,7 @@ def compile_profile(answers, reference=None):
         "reference": reference,
         "answers": answers,
     }
+    _apply_pack(profile, answers)
     return profile
 
 
@@ -551,7 +699,9 @@ def summary_md(p):
 
 # -- brand settings (after onboarding) ------------------------------------------
 
-EXTRA_KEYS = ("font_files", "graphics_font", "sound_map", "logo")
+EXTRA_KEYS = ("font_files", "graphics_font", "sound_map", "logo", "caption_outline", "style",
+              "creative_rules", "color_roles", "reference_prefs")
+COLOR_ROLES = {"headline": "Headlines", "captions": "Captions", "key_words": "Key words in captions"}
 SOUND_EVENTS = {"headline": "Headline appears", "graphic_in": "Graphics pop in",
                 "emoji": "Emoji pops", "zoom_punch": "Snap zooms", "cta": "Call to action",
                 "tick": "Checklist ticks"}
@@ -735,7 +885,9 @@ def _validate_extra(key, value):
     if key == "graphics_font":
         if value in ("headline", "body", "library"):
             return value
-        raise AnswerError("graphics_font must be headline, body or library")
+        if str(value).startswith("font:") and str(value)[5:].strip():
+            return "font:" + str(value)[5:].strip()
+        raise AnswerError("graphics_font must be headline, body, library or font:<name>")
     if key == "sound_map":
         out = {}
         for ev, aid in (value or {}).items():
@@ -759,6 +911,47 @@ def _validate_extra(key, value):
         return {"id": value["id"], "position": pos,
                 "opacity": max(0.2, min(1.0, float(value.get("opacity") or 0.9))),
                 "size": max(80, min(400, int(value.get("size") or 180)))}
+    if key == "reference_prefs":
+        from . import reference_style
+        try:
+            return reference_style.validate_prefs(value)
+        except ValueError as e:
+            raise AnswerError(str(e))
+    if key == "color_roles":
+        out = {}
+        for role, v in (value or {}).items():
+            if role not in COLOR_ROLES:
+                raise AnswerError(f"Unknown colour role {role}")
+            if v in (None, ""):
+                continue
+            v = str(v).strip()
+            if not re.fullmatch(r"#?[0-9A-Fa-f]{6}", v):
+                parsed = parse_colors(v)        # also accepts names like "hot pink"
+                v = parsed[0] if parsed else None
+            if not v:
+                raise AnswerError(f"{COLOR_ROLES[role]}: use a HEX code like #FF3E8E")
+            out[role] = ("#" + v.lstrip("#")).upper()
+        return out
+    if key in ("style", "creative_rules"):
+        from . import styles
+        try:
+            return styles.validate_choice(value) if key == "style" else styles.validate_rules(value)
+        except ValueError as e:
+            raise AnswerError(str(e))
+    if key == "caption_outline":
+        v = dict(DEFAULT_OUTLINE, **(value or {}))
+        if not isinstance(v["enabled"], bool):
+            raise AnswerError("Caption outline must be on or off")
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", str(v["color"])):
+            raise AnswerError("Caption outline colour must look like #000000")
+        if v["thickness"] not in OUTLINE_WIDTHS:
+            raise AnswerError("Caption outline thickness must be thin, medium or thick")
+        try:
+            op = float(v["opacity"])
+        except (TypeError, ValueError):
+            raise AnswerError("Caption outline opacity must be a number")
+        return {"enabled": v["enabled"], "color": v["color"].upper(), "thickness": v["thickness"],
+                "opacity": round(max(0.1, min(1.0, op)), 2)}
     raise AnswerError(f"Unknown setting {key}")
 
 
@@ -768,7 +961,16 @@ def save_settings(changes, scope, reel_root=None):
     if scope not in ("default", "reel"):
         raise AnswerError("scope must be 'default' or 'reel'")
     parsed = {}
+    # partial changes to these merge with what's already set (e.g. only new words)
+    MERGE = ("style", "creative_rules", "color_roles", "reference_prefs")
+    if any(k in MERGE for k in changes):
+        current = dict(load_progress().get("answers", {}))
+        if scope == "reel" and reel_root:
+            current.update(reel_answers(reel_root))
+        base_style = _with_style(current).get("style") or {}
     for k, v in changes.items():
+        if k in MERGE and isinstance(v, dict):
+            v = dict((base_style if k == "style" else current.get(k)) or {}, **v)
         if k in EXTRA_KEYS:
             parsed[k] = _validate_extra(k, v)
         elif k in EDITABLE:
@@ -780,6 +982,19 @@ def save_settings(changes, scope, reel_root=None):
             parsed[k] = parse_answer(k, text)
         else:
             raise AnswerError(f"{k} can't be changed here")
+    # A caption setting the customer picks themselves stays theirs when a style is chosen
+    # (otherwise the style's own caption look would quietly replace it).
+    picked = [k for k in ("caption_style", "caption_animation", "caption_emphasis")
+              if k in parsed and parsed[k] != "style"]
+    if picked:
+        cur = dict(load_progress().get("answers", {}))
+        if scope == "reel" and reel_root:
+            cur.update(reel_answers(reel_root))
+        cur.update(parsed)
+        st = dict(_with_style(cur).get("style") or {})
+        if st.get("pack"):
+            st["keep"] = sorted(set(st.get("keep") or []) | set(picked))
+            parsed["style"] = st
     if scope == "default":
         if not is_onboarded():
             raise AnswerError("Finish your brand onboarding first. Until then, changes can "
@@ -812,3 +1027,59 @@ def _write_reel_answers(reel_root, ra):
         p.write_text(json.dumps(ra, indent=2, ensure_ascii=False) + "\n")
     elif p.exists():
         p.unlink()
+
+
+# -- reading settings back in plain language ------------------------------------
+
+def explain(profile):
+    """What a reel will follow, in plain words, with where each choice came from
+    (Claude reads this back to the customer after saving their preferences)."""
+    from . import styles
+    r = styles.resolve(profile)
+    c, f, cap = profile.get("colors", {}), profile.get("fonts", {}), profile.get("captions", {})
+    src = {"engine": "plain default", "brand": "your setting", "profile": "your setting"}
+    lines = [f"Style: {r['pack'].title()}" + (" (your original look)" if r["legacy"] else "")
+             + ("".join(f"; {', '.join(m['aspects'])} borrowed from {m['pack'].title()}" for m in r["mix"]))]
+    if r["direction"]:
+        lines.append(f"In your words: \"{r['direction']}\"")
+    lines.append(f"Colours: main {c.get('primary')}, highlight {c.get('accent')}; headlines {c.get('headline') or c.get('primary')}; "
+                 f"captions {c.get('caption_text')}" + (f", key words {c.get('caption_keyword')}" if c.get("caption_keyword") else ""))
+    fl = f.get("from_library") or {}
+    lines.append(f"Fonts: headlines {f.get('headline')}{' (your uploaded file)' if fl.get('headline') else ''}, "
+                 f"text {f.get('body')}{' (your uploaded file)' if fl.get('body') else ''}")
+    lines.append(f"Captions: {cap.get('style', '').replace('_', ' ')}, {cap.get('animation', '').replace('_', ' ')}, "
+                 f"key words {cap.get('emphasis', '').replace('_', ' ')}, {cap.get('position', '').replace('_', ' ')}")
+    def why(s):
+        if s.startswith("pack:"):
+            return f"part of the {s[5:].title()} style"
+        return src.get(s, s.replace("_", " "))
+    on = [d.replace("_", " ") + f" ({why(v['source'])})" for d, v in r["decorations"].items() if v["on"]]
+    off_by_rule = [d.replace("_", " ") for d, v in r["decorations"].items() if v["source"].startswith("rule:")]
+    lines.append("Decorations on: " + (", ".join(on) if on else "none"))
+    if off_by_rule:
+        lines.append("Turned off by your rules: " + ", ".join(off_by_rule))
+    if r["rules"].get("flags") or r["rules"].get("notes"):
+        lines.append("Your rules: " + ", ".join(x.replace("_", " ") for x in r["rules"].get("flags", []))
+                     + (f"; notes: {r['rules']['notes']}" if r["rules"].get("notes") else ""))
+    if r["blocked_intents"]:
+        lines.append("Never shown: " + ", ".join(r["blocked_intents"]))
+    rp = (profile.get("answers") or {}).get("reference_prefs") or {}
+    if rp.get("use") or rp.get("avoid"):
+        lines.append("From your reference reel (inspiration only, never copied): "
+                     + (f"like its {', '.join(rp['use'])}" if rp.get("use") else "")
+                     + ("; " if rp.get("use") and rp.get("avoid") else "")
+                     + (f"not its {', '.join(rp['avoid'])}" if rp.get("avoid") else ""))
+    if r["sound_off"]:
+        lines.append("Sound effects: none (your rule)")
+    return lines
+
+
+def suggestions(style_pack=None):
+    """Starter palettes and font pairings for customers without branding yet."""
+    from . import styles
+    out = {}
+    for p in styles.list_packs():
+        if p["legacy"] or (style_pack and p["id"] != style_pack):
+            continue
+        out[p["id"]] = styles.load_pack(p["id"]).get("suggestions", {})
+    return out

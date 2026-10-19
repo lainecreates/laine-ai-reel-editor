@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "summary": "Three quick, practical tips for better videos, a reality check, then an invitation to get the guide",
+  "tone": "practical, encouraging, direct",
+  "beats": [
+    {"type": "hook", "from": 0, "to": 6},
+    {"type": "step", "from": 7, "to": 22},
+    {"type": "proof", "from": 23, "to": 29},
+    {"type": "question", "from": 30, "to": 38},
+    {"type": "aside", "from": 39, "to": 41},
+    {"type": "cta", "from": 42, "to": 49}
+  ],
+  "key_words": [11, 16, 21, 26, 43],
+  "moments": [
+    {"intent": "hook", "from": 0, "to": 6, "quote": "Here are three tips for better videos.",
+     "text": "3 tips for better videos", "why": "the promise of the reel: this is where viewers decide to stay"},
+    {"intent": "list", "from": 7, "to": 22, "why": "she actually enumerates three tips: a list lets viewers keep them",
+     "items": [{"text": "Film near a window", "at_word": 7},
+               {"text": "Use the back camera", "at_word": 12},
+               {"text": "Edit in under 10 minutes", "at_word": 17}]},
+    {"intent": "stat", "from": 23, "to": 29, "quote": "Did you know 80% of creators quit?",
+     "text": "80% of creators quit", "why": "the proof beat: the number makes the problem real"},
+    {"intent": "cta", "from": 42, "to": 49, "quote": "Comment guide below and follow me for more.\"",
+     "text": "Comment GUIDE", "why": "the one action she asks for; the keyword is what viewers must type"}
+  ],
+  "no_graphics": [
+    {"from": 30, "to": 38, "why": "two direct questions to the viewer: let them land on her face, no text competing"},
+    {"from": 39, "to": 41, "why": "'look at this' but there is nothing to point at in this clip: a pointer would be noise"}
+  ],
+  "zooms": [
+    {"from": 23, "to": 29, "kind": "punch", "why": "the number lands: punch in on the reveal"},
+    {"from": 34, "to": 38, "kind": "push", "why": "slow push on the personal question to draw the viewer in"}
+  ]
+}
