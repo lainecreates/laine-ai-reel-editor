@@ -1,6 +1,19 @@
 # Changelog
 
-## 1.0.0-beta.1 (private beta, not yet published)
+## 1.0.0-beta.2 (private beta)
+
+Fixes from the first beta installation test:
+
+- **The 24 included fonts are now part of the download.** In 1.0.0-beta.1 they were left out
+  of the GitHub repository by mistake, with their licenses and catalog. Run "Update my reel
+  editor" to get them.
+- **Tools you already have are used as they are**: the installer recognises tool paths set in
+  `config/settings.json` (whisper-cli, FFmpeg, Node.js), and only needs Homebrew when something
+  is actually missing.
+- **A plain note before Homebrew installs or updates anything** that other apps on your Mac may
+  share. Nothing you have is removed.
+
+## 1.0.0-beta.1 (private beta)
 
 Everything in 0.9.0, plus:
 
@@ -25,7 +38,7 @@ Everything in 0.9.0, plus:
 - Needs **Node.js 22 or newer** (the installer handles it).
 - License covers invited beta testers and customers. The included fonts keep their own licenses.
 
-## 0.9.0 (pre-release, not yet published)
+## 0.9.0 (pre-release)
 
 First customer package of Laine AI Reel Editor, for Apple silicon Macs.
 

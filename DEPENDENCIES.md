@@ -20,7 +20,7 @@ it and installs what's missing (it asks first). To check without changing anythi
 | # | Dependency | Tested version | Used for | How it's installed | Size |
 |---|---|---|---|---|---|
 | 1 | **Claude Pro or Max** plan + **Claude desktop app** (Code tab) | 2026 | Runs the editor: onboarding, "Edit my reel", reviews | The customer, from claude.ai and claude.ai/download | ~300 MB |
-| 2 | **Homebrew** | 4.x | Installs the tools below | The customer, one command from brew.sh (needs the Mac password) | ~500 MB |
+| 2 | **Homebrew** | 4.x | Installs the tools below (only needed if one of them is missing) | The customer, one command from brew.sh (needs the Mac password) | ~500 MB |
 | 3 | **Xcode Command Line Tools** (`git`, `python3` 3.9+) | git 2.39, Python 3.9.6 | `git`: download and update the editor. `python3`: the editor itself (standard library only) | Automatically with Homebrew; or `xcode-select --install` | ~1–2 GB |
 | 4 | **FFmpeg** (with `ffprobe`) | 9.0 | Cutting, silence detection, audio, zooms, final MP4 | `install.sh` → `brew install ffmpeg` | ~150 MB |
 | 5 | **whisper.cpp** (`whisper-cli`) | 1.9 | Speech to text with word timings | `install.sh` → `brew install whisper-cpp` | ~10 MB |
@@ -69,5 +69,14 @@ The editor doesn't ship any of these tools. Each customer installs them from the
 
 `install.sh` creates `config/settings.json` from `config/settings.example.json`.
 It's never part of updates. You only need to edit it if a tool lives somewhere
-unusual (`"tools": {"ffmpeg": "/path/to/ffmpeg"}`) or the speech model is
-elsewhere (`"whisper_model": "/path/to/model.bin"`).
+unusual or the speech model is elsewhere:
+
+```json
+{"tools": {"whisper-cli": "/path/to/whisper-cli", "ffmpeg": "/path/to/ffmpeg",
+           "ffprobe": "/path/to/ffprobe", "node": "/path/to/node"},
+ "whisper_model": "/path/to/ggml-small.en.bin"}
+```
+
+The installer and the editor use those paths as they are, so tools you already
+have don't need Homebrew. Homebrew is only needed when something is missing, and
+the installer says so (and asks) before it installs or updates anything for your Mac.

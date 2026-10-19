@@ -7,6 +7,8 @@ assets/library/
 assets/sfx/generated/
 assets/fonts/*
 !assets/fonts/.gitkeep
+# ...except the fonts included with the editor, their licences and catalog (they ship)
+!assets/fonts/included/
 assets/sfx/*
 !assets/sfx/.gitkeep
 workspace/*

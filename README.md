@@ -13,7 +13,7 @@ Claude:
 - Everything is kept clear of your face and inside the platforms' safe areas.
 - You review it in your browser, ask for changes and download the final MP4.
 
-**Status: private beta (1.0.0-beta.1).** Testing is by invitation; see [LICENSE](LICENSE).
+**Status: private beta (1.0.0-beta.2).** The code is public; using it is by invitation during the beta (or after buying the guide). See [LICENSE](LICENSE).
 
 Everything runs on your own Mac. Your videos never leave it.
 

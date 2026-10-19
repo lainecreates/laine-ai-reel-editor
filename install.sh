@@ -84,20 +84,7 @@ else
   ok "${FREE_GB} GB free disk space"
 fi
 
-# -- 2. Homebrew, git and python3 --------------------------------------------------
-BREW="$(command -v brew || true)"
-[ -z "$BREW" ] && [ -x /opt/homebrew/bin/brew ] && BREW=/opt/homebrew/bin/brew
-pretend brew && BREW=""
-if [ -z "$BREW" ]; then
-  fail "Homebrew isn't installed yet."
-  echo "Install it first: open https://brew.sh, copy the command shown there, paste it"
-  echo "into Terminal and press Return. Then run this installer again:"
-  echo
-  echo "    $ROOT/install.sh"
-  exit 1
-fi
-eval "$("$BREW" shellenv)"     # puts Homebrew's tools on PATH for this run
-ok "Homebrew ($BREW)"
+# -- 2. python3, and Homebrew if it's here ------------------------------------------
 if ! /usr/bin/xcrun --find python3 >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
   fail "Apple's Command Line Tools (python3, git) are missing."
   echo "Run this, click Install in the window that appears, then run the installer again:"
@@ -105,22 +92,52 @@ if ! /usr/bin/xcrun --find python3 >/dev/null 2>&1 && ! command -v python3 >/dev
   exit 1
 fi
 ok "python3 $(python3 -c 'import platform; print(platform.python_version())')"
+# Homebrew is only needed if something below has to be installed or updated.
+BREW="$(command -v brew || true)"
+[ -z "$BREW" ] && [ -x /opt/homebrew/bin/brew ] && BREW=/opt/homebrew/bin/brew
+pretend brew && BREW=""
+if [ -n "$BREW" ]; then
+  eval "$("$BREW" shellenv)"     # puts Homebrew's tools on PATH for this run
+  ok "Homebrew ($BREW)"
+fi
 
 # -- 3. tools ----------------------------------------------------------------------
+# A tool path set in config/settings.json ("tools": {"whisper-cli": "/path/to/whisper-cli"})
+# is used as it is, wherever it lives - no Homebrew needed for it.
+cfg_tool() {
+  [ -f config/settings.json ] || return 0
+  python3 - "$1" <<'PYEOF' 2>/dev/null
+import json, os, sys
+t = (json.load(open("config/settings.json")).get("tools") or {}).get(sys.argv[1])
+t = os.path.expanduser(t) if t else ""
+print(t if t and os.access(t, os.X_OK) else "")
+PYEOF
+}
+tool_at() {   # where a tool is: the configured path, else on PATH (empty = missing)
+  pretend "$1" && return 0
+  local c; c="$(cfg_tool "$1")"
+  if [ -n "$c" ]; then echo "$c"; else command -v "$1" 2>/dev/null || true; fi
+}
 echo
 bold "2. Checking the editing tools"
 FORMULAS=()
-if have ffmpeg && have ffprobe; then ok "FFmpeg"; else miss "FFmpeg (video and audio) - about 150 MB"; FORMULAS+=(ffmpeg); fi
-if have whisper-cli; then ok "whisper.cpp"; else miss "whisper.cpp (speech to text) - about 10 MB"; FORMULAS+=(whisper-cpp); fi
-NODE_MAJOR=""; have node && NODE_MAJOR="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+FF="$(tool_at ffmpeg)"; FP="$(tool_at ffprobe)"
+if [ -n "$FF" ] && [ -n "$FP" ]; then ok "FFmpeg"; else miss "FFmpeg (video and audio) - about 150 MB"; FORMULAS+=(ffmpeg); fi
+WC="$(tool_at whisper-cli)"
+if [ -n "$WC" ]; then ok "whisper.cpp ($WC)"; else miss "whisper.cpp (speech to text) - about 10 MB"; FORMULAS+=(whisper-cpp); fi
+NODE_BIN="$(tool_at node)"
+NODE_MAJOR=""; [ -n "$NODE_BIN" ] && NODE_MAJOR="$("$NODE_BIN" --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
 # Node 22+ (the editor uses Node's built-in WebSocket). An older Node elsewhere on this Mac is
 # left alone; Homebrew's Node is used when it's new enough.
-BREW_NODE_MAJOR=""; [ -x "$($BREW --prefix)/bin/node" ] && BREW_NODE_MAJOR="$("$($BREW --prefix)/bin/node" --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+BREW_NODE_MAJOR=""
+if [ -n "$BREW" ] && [ -x "$($BREW --prefix)/bin/node" ]; then
+  BREW_NODE_MAJOR="$("$($BREW --prefix)/bin/node" --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+fi
 pretend node && BREW_NODE_MAJOR=""
 NODE_UPGRADE=0
 if [ -n "$NODE_MAJOR" ] && [ "$NODE_MAJOR" -ge 22 ]; then ok "Node.js v$NODE_MAJOR"
 elif [ -n "$BREW_NODE_MAJOR" ] && [ "$BREW_NODE_MAJOR" -ge 22 ]; then ok "Node.js v$BREW_NODE_MAJOR (Homebrew)"
-elif [ -n "$BREW_NODE_MAJOR" ]; then miss "Node.js v$BREW_NODE_MAJOR is too old: version 22 or newer is needed (Homebrew will update it)"; NODE_UPGRADE=1
+elif [ -n "$BREW_NODE_MAJOR" ]; then miss "Node.js v$BREW_NODE_MAJOR is too old: version 22 or newer is needed (Homebrew can update it)"; NODE_UPGRADE=1
 else
   [ -n "$NODE_MAJOR" ] && miss "Node.js v$NODE_MAJOR is too old: version 22 or newer is needed - about 100 MB" \
                        || miss "Node.js 22 or newer (draws captions) - about 100 MB"
@@ -138,12 +155,28 @@ NEED_TOOLS=0
 if [ "$NEED_TOOLS" = "1" ]; then
   if [ "$MODE" = "check" ]; then
     miss "Run ./install.sh to install the missing tools."
-  elif ask "Install the missing tools listed above with Homebrew now?"; then
-    if [ ${#FORMULAS[@]} -gt 0 ]; then act "$BREW" install "${FORMULAS[@]}" || { fail "Homebrew couldn't install ${FORMULAS[*]}. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
-    if [ "$NODE_UPGRADE" = "1" ]; then act "$BREW" upgrade node || { fail "Homebrew couldn't update Node.js. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
-    if [ -z "$CHROME" ]; then act "$BREW" install --cask google-chrome || { fail "Chrome didn't install. You can download it from google.com/chrome instead, then run ./install.sh again."; exit 1; }; fi
+  elif [ -z "$BREW" ]; then
+    fail "Homebrew is needed to install the tools listed above."
+    echo "Install it first: open https://brew.sh, copy the command shown there, paste it"
+    echo "into Terminal and press Return. Then run this installer again:"
+    echo
+    echo "    $ROOT/install.sh"
+    echo
+    echo "(Already have these tools somewhere else? Put their paths in config/settings.json"
+    echo " under \"tools\" - see DEPENDENCIES.md - and run the installer again.)"
+    exit 1
   else
-    fail "Setup stopped: the editor needs these tools. Run ./install.sh again when you're ready."; exit 1
+    echo
+    echo "  Note: Homebrew installs these tools for your whole Mac, so other apps can use them"
+    echo "  too. Nothing you already have is removed."
+    [ "$NODE_UPGRADE" = "1" ] && echo "  Updating Node.js also updates it for anything else on this Mac that uses Homebrew's Node.js."
+    if ask "Install the missing tools listed above with Homebrew now?"; then
+      if [ ${#FORMULAS[@]} -gt 0 ]; then act "$BREW" install "${FORMULAS[@]}" || { fail "Homebrew couldn't install ${FORMULAS[*]}. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
+      if [ "$NODE_UPGRADE" = "1" ]; then act "$BREW" upgrade node || { fail "Homebrew couldn't update Node.js. Check your internet connection, then run ./install.sh again."; exit 1; }; fi
+      if [ -z "$CHROME" ]; then act "$BREW" install --cask google-chrome || { fail "Chrome didn't install. You can download it from google.com/chrome instead, then run ./install.sh again."; exit 1; }; fi
+    else
+      fail "Setup stopped: the editor needs these tools. Run ./install.sh again when you're ready."; exit 1
+    fi
   fi
 fi
 
@@ -213,7 +246,7 @@ if [ "$MODE" = "install" ] && [ -z "${SKIP_SELFCHECK:-}" ]; then
   echo "  test edit on a short sample clip (about 30 seconds)..."
   T="$(mktemp -d -t laine-install-check)"
   if say -o "$T/voice.aiff" "Hello. This is a quick test of the reel editor. Everything works." \
-     && ffmpeg -loglevel error -y -f lavfi -i color=c=0x808080:s=720x1280:r=30 -i "$T/voice.aiff" \
+     && "${FF:-ffmpeg}" -loglevel error -y -f lavfi -i color=c=0x808080:s=720x1280:r=30 -i "$T/voice.aiff" \
           -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac "$T/sample.mp4" \
      && LAINE_REELS_WORKSPACE="$T/work" python3 scripts/reel.py run "$T/sample.mp4" --name install-check >"$T/log" 2>&1 \
      && ls "$T"/work/*/output/*-vertical.mp4 >/dev/null 2>&1 \

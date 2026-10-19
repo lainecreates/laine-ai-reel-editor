@@ -1,0 +1,263 @@
+{
+ "source": "Google Fonts (github.com/google/fonts)",
+ "categories": {
+  "Bold & Attention-Grabbing": [
+   {
+    "family": "Anton",
+    "dir": "anton",
+    "files": [
+     "Anton-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Bebas Neue",
+    "dir": "bebas-neue",
+    "files": [
+     "BebasNeue-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Archivo Black",
+    "dir": "archivo-black",
+    "files": [
+     "ArchivoBlack-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Oswald",
+    "dir": "oswald",
+    "files": [
+     "Oswald-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Montserrat",
+    "dir": "montserrat",
+    "files": [
+     "Montserrat-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Bricolage Grotesque",
+    "dir": "bricolage-grotesque",
+    "files": [
+     "BricolageGrotesque-opsz-wdth-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   }
+  ],
+  "Elegant & Editorial": [
+   {
+    "family": "Playfair Display",
+    "dir": "playfair-display",
+    "files": [
+     "PlayfairDisplay-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "DM Serif Display",
+    "dir": "dm-serif-display",
+    "files": [
+     "DMSerifDisplay-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Cormorant Garamond",
+    "dir": "cormorant-garamond",
+    "files": [
+     "CormorantGaramond-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Libre Baskerville",
+    "dir": "libre-baskerville",
+    "files": [
+     "LibreBaskerville-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Lora",
+    "dir": "lora",
+    "files": [
+     "Lora-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Bodoni Moda",
+    "dir": "bodoni-moda",
+    "files": [
+     "BodoniModa-opsz-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   }
+  ],
+  "Handwritten & Playful": [
+   {
+    "family": "Caveat",
+    "dir": "caveat",
+    "files": [
+     "Caveat-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Pacifico",
+    "dir": "pacifico",
+    "files": [
+     "Pacifico-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Dancing Script",
+    "dir": "dancing-script",
+    "files": [
+     "DancingScript-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Permanent Marker",
+    "dir": "permanent-marker",
+    "files": [
+     "PermanentMarker-Regular.ttf"
+    ],
+    "variable": false,
+    "license": "Apache License 2.0",
+    "license_file": "LICENSE.txt"
+   },
+   {
+    "family": "Shadows Into Light",
+    "dir": "shadows-into-light",
+    "files": [
+     "ShadowsIntoLight.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Fredoka",
+    "dir": "fredoka",
+    "files": [
+     "Fredoka-wdth-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   }
+  ],
+  "Clean Everyday Captions": [
+   {
+    "family": "Inter",
+    "dir": "inter",
+    "files": [
+     "Inter-opsz-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Poppins",
+    "dir": "poppins",
+    "files": [
+     "Poppins-Black.ttf",
+     "Poppins-Bold.ttf",
+     "Poppins-ExtraBold.ttf",
+     "Poppins-Medium.ttf",
+     "Poppins-Regular.ttf",
+     "Poppins-SemiBold.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Lato",
+    "dir": "lato",
+    "files": [
+     "Lato-Black.ttf",
+     "Lato-Bold.ttf",
+     "Lato-ExtraBold.ttf",
+     "Lato-Medium.ttf",
+     "Lato-Regular.ttf",
+     "Lato-SemiBold.ttf"
+    ],
+    "variable": false,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "DM Sans",
+    "dir": "dm-sans",
+    "files": [
+     "DMSans-opsz-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Nunito",
+    "dir": "nunito",
+    "files": [
+     "Nunito-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   },
+   {
+    "family": "Work Sans",
+    "dir": "work-sans",
+    "files": [
+     "WorkSans-wght.ttf"
+    ],
+    "variable": true,
+    "license": "SIL Open Font License 1.1",
+    "license_file": "OFL.txt"
+   }
+  ]
+ }
+}
